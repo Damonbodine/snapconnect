@@ -1,0 +1,159 @@
+name: SnapConnect Bot Automation
+
+on:
+  schedule:
+    # Morning routine - 7:00 AM EST (12:00 UTC)
+    - cron: '0 12 * * *'
+    # Midday engagement - 12:00 PM EST (17:00 UTC)  
+    - cron: '0 17 * * *'
+    # Afternoon posts - 2:00 PM EST (19:00 UTC)
+    - cron: '0 19 * * *'
+    # Evening engagement - 5:00 PM EST (22:00 UTC)
+    - cron: '0 22 * * *'
+    # Night routine - 7:00 PM EST (0:00 UTC next day)
+    - cron: '0 0 * * *'
+    # Health check - 3:00 AM EST (8:00 UTC)
+    - cron: '0 8 * * *'
+  
+  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      routine:
+        description: 'Which routine to run'
+        required: true
+        default: 'health'
+        type: choice
+        options:
+          - morning
+          - social
+          - friends
+          - health
+          - all
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  determine-routine:
+    runs-on: ubuntu-latest
+    outputs:
+      routine: ${{ steps.routine.outputs.routine }}
+    steps:
+      - id: routine
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "routine=${{ github.event.inputs.routine }}" >> $GITHUB_OUTPUT
+          else
+            # Determine routine based on cron schedule
+            hour=$(date -u +%H)
+            case $hour in
+              12) echo "routine=morning" >> $GITHUB_OUTPUT ;;
+              17) echo "routine=social" >> $GITHUB_OUTPUT ;;
+              19) echo "routine=afternoon" >> $GITHUB_OUTPUT ;;
+              22) echo "routine=social" >> $GITHUB_OUTPUT ;;
+              0)  echo "routine=night" >> $GITHUB_OUTPUT ;;
+              8)  echo "routine=health" >> $GITHUB_OUTPUT ;;
+              *)  echo "routine=health" >> $GITHUB_OUTPUT ;;
+            esac
+          fi
+
+  run-bot-routine:
+    runs-on: ubuntu-latest
+    needs: determine-routine
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Setup environment
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXPO_PUBLIC_OPENAI_API_KEY: ${{ secrets.EXPO_PUBLIC_OPENAI_API_KEY }}
+        run: |
+          echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" >> .env
+          echo "EXPO_PUBLIC_OPENAI_API_KEY=$EXPO_PUBLIC_OPENAI_API_KEY" >> .env
+          
+      - name: Run morning routine
+        if: needs.determine-routine.outputs.routine == 'morning'
+        run: |
+          echo "🌅 Running morning routine..."
+          npm run bot:scheduler:health
+          npm run bot:army-human
+          
+      - name: Run social engagement
+        if: needs.determine-routine.outputs.routine == 'social'
+        run: |
+          echo "👥 Running social engagement..."
+          npm run bot:social
+          
+      - name: Run afternoon routine  
+        if: needs.determine-routine.outputs.routine == 'afternoon'
+        run: |
+          echo "🌤️ Running afternoon routine..."
+          npm run bot:army-human
+          
+      - name: Run night routine
+        if: needs.determine-routine.outputs.routine == 'night'
+        run: |
+          echo "🌙 Running night routine..."
+          npm run bot:friends
+          npm run bot:army-human
+          npm run bot:social
+          
+      - name: Run friendship building
+        if: needs.determine-routine.outputs.routine == 'friends'
+        run: |
+          echo "🤝 Running friendship building..."
+          npm run bot:friends
+          
+      - name: Run health check
+        if: needs.determine-routine.outputs.routine == 'health'
+        run: |
+          echo "🏥 Running health check..."
+          npm run bot:stats
+          
+      - name: Run all routines
+        if: needs.determine-routine.outputs.routine == 'all'
+        run: |
+          echo "🚀 Running all routines..."
+          npm run bot:scheduler:health
+          npm run bot:army-human
+          npm run bot:social
+          npm run bot:friends
+          
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-logs-${{ needs.determine-routine.outputs.routine }}-${{ github.run_number }}
+          path: |
+            *.log
+            logs/
+          retention-days: 7
+
+  notify-completion:
+    runs-on: ubuntu-latest
+    needs: [determine-routine, run-bot-routine]
+    if: always()
+    
+    steps:
+      - name: Notify completion
+        run: |
+          if [[ "${{ needs.run-bot-routine.result }}" == "success" ]]; then
+            echo "✅ Bot routine '${{ needs.determine-routine.outputs.routine }}' completed successfully"
+          else
+            echo "❌ Bot routine '${{ needs.determine-routine.outputs.routine }}' failed"
+            exit 1
+          fi

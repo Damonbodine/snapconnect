@@ -1,0 +1,40 @@
+# Systemd service file for SnapConnect Bot Scheduler
+# Place in: /etc/systemd/system/snapconnect-bots.service
+#
+# To install:
+# sudo cp deployment/snapconnect-bots.service /etc/systemd/system/
+# sudo systemctl daemon-reload
+# sudo systemctl enable snapconnect-bots
+# sudo systemctl start snapconnect-bots
+
+[Unit]
+Description=SnapConnect AI Bot Scheduler
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/snapconnect
+ExecStart=/usr/bin/npm run bot:scheduler
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+EnvironmentFile=/home/ubuntu/snapconnect/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=snapconnect-bots
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ubuntu/snapconnect
+
+[Install]
+WantedBy=multi-user.target

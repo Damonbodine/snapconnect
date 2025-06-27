@@ -1,0 +1,47 @@
+# Dockerfile for SnapConnect Bot Scheduler
+# Lightweight container for running automated bot operations
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    tzdata \
+    curl \
+    && cp /usr/share/zoneinfo/America/New_York /etc/localtime \
+    && echo "America/New_York" > /etc/timezone
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (production only)
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY . .
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Environment
+ENV NODE_ENV=production
+ENV TZ=America/New_York
+
+# User setup for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S botrunner -u 1001 -G nodejs && \
+    chown -R botrunner:nodejs /app
+
+USER botrunner
+
+# Expose health check port
+EXPOSE 3000
+
+# Start the scheduler
+CMD ["npm", "run", "bot:scheduler"]

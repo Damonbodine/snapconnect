@@ -1,0 +1,146 @@
+import './global.css';
+import React, { useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, Text, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GradientCard } from './src/components/ui/GradientCard';
+import { DiscoverScreen } from './src/screens/DiscoverScreen';
+import { EventsScreen } from './src/screens/EventsScreen';
+import { CameraScreen } from './src/screens/CameraScreen';
+import { CliqueScreen } from './src/screens/CliqueScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+import { useAuthStore } from './src/stores/authStore';
+
+type Screen = 'welcome' | 'discover' | 'clique' | 'camera' | 'events' | 'profile';
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+  const { user, isLoading, setLoading } = useAuthStore();
+
+  React.useEffect(() => {
+    setLoading(false);
+  }, []);
+
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'discover':
+        return <DiscoverScreen />;
+      case 'events':
+        return <EventsScreen />;
+      case 'camera':
+        return <CameraScreen />;
+      case 'clique':
+        return <CliqueScreen />;
+      case 'profile':
+        return <ProfileScreen />;
+      default:
+        return (
+          <LinearGradient colors={['#0F0F0F', '#1F2937']} className="flex-1">
+            <View className="flex-1 items-center justify-center px-6">
+              <View className="mb-16">
+                <Text className="text-white text-4xl font-bold text-center mb-4">
+                  SnapConnect
+                </Text>
+                <Text className="text-white/60 text-lg text-center">
+                  AI-Powered Fitness Community
+                </Text>
+              </View>
+
+              <View className="w-full max-w-sm space-y-4">
+                <GradientCard
+                  gradient="primary"
+                  className="w-full"
+                  onPress={() => setCurrentScreen('discover')}
+                >
+                  <Text className="text-white text-xl font-bold text-center mb-2">
+                    Get Started 🏋️‍♀️
+                  </Text>
+                  <Text className="text-white/80 text-center">
+                    Join the fitness community with AI-powered content generation
+                  </Text>
+                </GradientCard>
+
+                <GradientCard gradient="secondary" className="w-full">
+                  <Text className="text-white text-lg font-semibold text-center mb-2">
+                    ✨ Smart Captions
+                  </Text>
+                  <Text className="text-white/80 text-center text-sm">
+                    AI generates personalized workout captions
+                  </Text>
+                </GradientCard>
+
+                <GradientCard gradient="success" className="w-full">
+                  <Text className="text-white text-lg font-semibold text-center mb-2">
+                    📅 Fitness Events
+                  </Text>
+                  <Text className="text-white/80 text-center text-sm">
+                    Discover and create local fitness events
+                  </Text>
+                </GradientCard>
+              </View>
+            </View>
+          </LinearGradient>
+        );
+    }
+  };
+
+  const renderTabBar = () => {
+    if (currentScreen === 'welcome') return null;
+
+    const tabs = [
+      { key: 'discover', emoji: '🏠', label: 'Discover' },
+      { key: 'clique', emoji: '👥', label: 'Clique' },
+      { key: 'camera', emoji: '📸', label: 'Camera' },
+      { key: 'events', emoji: '📅', label: 'Events' },
+      { key: 'profile', emoji: '👤', label: 'Profile' },
+    ];
+
+    return (
+      <LinearGradient
+        colors={['rgba(15, 15, 15, 0.95)', 'rgba(31, 41, 55, 0.95)']}
+        className="absolute bottom-0 left-0 right-0 h-20 flex-row items-center justify-around"
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.key}
+            onPress={() => setCurrentScreen(tab.key as Screen)}
+            className="flex-1 items-center justify-center"
+          >
+            <Text className={`text-2xl ${currentScreen === tab.key ? 'opacity-100' : 'opacity-60'}`}>
+              {tab.emoji}
+            </Text>
+            <Text className={`text-xs mt-1 ${currentScreen === tab.key ? 'text-primary-pink' : 'text-white/60'}`}>
+              {tab.label}
+            </Text>
+          </Pressable>
+        ))}
+      </LinearGradient>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-dark-bg items-center justify-center">
+        <Text className="text-white text-lg">Loading SnapConnect...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <GestureHandlerRootView className="flex-1">
+      <SafeAreaProvider>
+        <View className="flex-1">
+          {renderScreen()}
+          {renderTabBar()}
+        </View>
+        <StatusBar style="light" />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}

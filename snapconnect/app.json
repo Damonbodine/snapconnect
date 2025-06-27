@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "SnapConnect",
+    "slug": "snapconnect",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "snapconnect",
+    "entryPoint": "expo-router/entry",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F0F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.snapconnect.fitness",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SnapConnect needs camera access to capture workout photos and videos with AR filters.",
+        "NSPhotoLibraryUsageDescription": "SnapConnect needs photo library access to save your progress photos.",
+        "NSLocationWhenInUseUsageDescription": "SnapConnect needs location access to show nearby fitness events.",
+        "NSMicrophoneUsageDescription": "SnapConnect needs microphone access for video recording with audio.",
+        "NSHealthShareUsageDescription": "SnapConnect needs access to your health data to provide personalized fitness coaching and track your progress.",
+        "NSHealthUpdateUsageDescription": "SnapConnect can update your health data with workout information and achievements."
+      },
+      "capabilities": [
+        "ARKit"
+      ]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0F0F"
+      },
+      "package": "com.snapconnect.fitness",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow SnapConnect to use your location to find nearby fitness events."
+        }
+      ],
+      "expo-video",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "SnapConnect needs access to your health data to provide personalized fitness coaching and track your progress.",
+          "healthUpdatePermission": "SnapConnect can update your health data with workout information and achievements."
+        }
+      ]
+    ]
+  }
+}

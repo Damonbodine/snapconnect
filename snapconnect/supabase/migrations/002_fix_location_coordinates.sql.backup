@@ -1,0 +1,97 @@
+-- Fix location_coordinates to use JSON instead of PostGIS POINT for easier client compatibility
+
+-- Drop the index on location_coordinates if it exists
+DROP INDEX IF EXISTS idx_events_location_coordinates;
+
+-- Change location_coordinates from POINT to TEXT (to store JSON)
+ALTER TABLE events ALTER COLUMN location_coordinates TYPE TEXT;
+
+-- Update any existing PostGIS POINT data to JSON format
+UPDATE events 
+SET location_coordinates = json_build_object(
+  'latitude', ST_Y(location_coordinates::geometry),
+  'longitude', ST_X(location_coordinates::geometry)
+)::text
+WHERE location_coordinates IS NOT NULL 
+AND location_coordinates != '' 
+AND location_coordinates NOT LIKE '{%';
+
+-- Add a check constraint to ensure valid JSON format
+ALTER TABLE events ADD CONSTRAINT check_location_coordinates_json 
+CHECK (location_coordinates IS NULL OR location_coordinates::json IS NOT NULL);
+
+-- Create a function to calculate distance between two JSON coordinate points
+CREATE OR REPLACE FUNCTION calculate_distance_json(
+  coords1 TEXT,
+  coords2 TEXT
+) RETURNS FLOAT AS $$
+DECLARE
+  lat1 FLOAT;
+  lon1 FLOAT;
+  lat2 FLOAT;
+  lon2 FLOAT;
+  r FLOAT := 6371; -- Earth radius in km
+  dlat FLOAT;
+  dlon FLOAT;
+  a FLOAT;
+  c FLOAT;
+BEGIN
+  -- Parse JSON coordinates
+  lat1 := (coords1::json->>'latitude')::FLOAT;
+  lon1 := (coords1::json->>'longitude')::FLOAT;
+  lat2 := (coords2::json->>'latitude')::FLOAT;
+  lon2 := (coords2::json->>'longitude')::FLOAT;
+  
+  -- Convert to radians
+  lat1 := lat1 * pi() / 180;
+  lon1 := lon1 * pi() / 180;
+  lat2 := lat2 * pi() / 180;
+  lon2 := lon2 * pi() / 180;
+  
+  -- Haversine formula
+  dlat := lat2 - lat1;
+  dlon := lon2 - lon1;
+  a := sin(dlat/2) * sin(dlat/2) + cos(lat1) * cos(lat2) * sin(dlon/2) * sin(dlon/2);
+  c := 2 * atan2(sqrt(a), sqrt(1-a));
+  
+  RETURN r * c;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a function to find events within a radius using JSON coordinates
+CREATE OR REPLACE FUNCTION find_events_within_radius(
+  user_lat FLOAT,
+  user_lon FLOAT,
+  radius_km FLOAT DEFAULT 25
+)
+RETURNS TABLE (
+  id UUID,
+  title TEXT,
+  location_name TEXT,
+  location_coordinates TEXT,
+  start_time TIMESTAMPTZ,
+  distance_km FLOAT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    e.id,
+    e.title,
+    e.location_name,
+    e.location_coordinates,
+    e.start_time,
+    calculate_distance_json(
+      json_build_object('latitude', user_lat, 'longitude', user_lon)::text,
+      e.location_coordinates
+    ) as distance_km
+  FROM events e
+  WHERE e.location_coordinates IS NOT NULL
+    AND e.status = 'published'
+    AND e.deleted_at IS NULL
+    AND calculate_distance_json(
+      json_build_object('latitude', user_lat, 'longitude', user_lon)::text,
+      e.location_coordinates
+    ) <= radius_km
+  ORDER BY distance_km;
+END;
+$$ LANGUAGE plpgsql;
