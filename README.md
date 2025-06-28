@@ -6,13 +6,9 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
 
 ### Option 1: Quick Demo with Expo Go (Recommended for Professors)
 
-**The fastest way to test the app without complex setup:**
-
 + Important:** This is a **React Native mobile application** that requires either:   │ │
 │ │    8 +  - **Mobile device** with Expo Go app (for quick testing)                             │ │
-│ │    9 +  - **iOS Simulator** via Xcode (macOS only)                                           │ │
-│ │   10 +                                         │ │
-│ │   11 +  - **Physical iOS/Android device** (recommended for full feature testing)  
+│ │    9 +  - **iOS Simulator** via Xcode (macOS only)                                           │ │ 
 
 1. **Get the app running:**
    ```bash
@@ -30,8 +26,6 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
 **⚠️ Note:** Some advanced features may be limited if you test the app through Expo Go
 
 ### Option 2: Full Development Build (Complete Experience)
-
-**For full feature access including AR and native capabilities:**
 
 #### Prerequisites
 - **Node.js** 18+ ([Download](https://nodejs.org/))
@@ -59,7 +53,7 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
    # Copy environment template
    cp .env.example .env
    
-   # Edit .env with your credentials (see Configuration section below)
+   # Edit .env with your credentials
    ```
 
 3. **Run on your preferred platform:**
@@ -67,11 +61,7 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
    # iOS (requires macOS and Xcode)
    npm run ios
    
-   # Android (requires Android Studio setup)
-   npm run android
-   
-   # Web (limited features)
-   npm run web
+
    ```
 
 ## ⚙️ Configuration
@@ -80,51 +70,12 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
 
 Create a `.env` file in the root directory with the following variables:
 
-```bash
-# Supabase Configuration (Backend Database)
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# OpenAI Configuration (AI Content Generation)
-EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key
-
-# App Configuration
-EXPO_PUBLIC_API_URL=https://api.snapconnect.fitness
-EXPO_PUBLIC_ENVIRONMENT=development
-```
-
-### Getting API Keys
-
-#### Supabase Setup (Required for app functionality)
-1. Create a free account at [supabase.com](https://supabase.com)
-2. Create a new project
-3. Go to Settings → API
-4. Copy your Project URL and anon/public key
-5. Run database migrations (see Database Setup below)
-
-#### OpenAI Setup (Required for AI features)
-1. Create an account at [platform.openai.com](https://platform.openai.com)
-2. Generate an API key in the API keys section
-3. Add billing information (required for API access)
+"I will send .env in my submission. 
 
 ### Database Setup
 
 The app uses Supabase as its backend. After setting up your Supabase project:
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Login to Supabase
-supabase login
-
-# Link to your project
-supabase link --project-ref your-project-id
-
-# Run migrations to set up the database schema
-supabase db push
 ```
-
 ## 📱 App Features & Testing Guide
 
 ### Core Features to Test
@@ -134,15 +85,14 @@ supabase db push
    - Login/logout functionality
    - Profile creation with fitness levels
 
-2. **Camera & AR Features**
-   - Photo/video capture
-   - Real-time face detection overlays
+2. **Camera & **
+   - Photo/video captures
    - AR filters and effects
-   - Media preview and editing
+   - Media preview 
 
 3. **Discover Feed**
-   - Ephemeral fitness posts
-   - AI-generated captions and content
+   - Ephemeral fitness posts (24 hours) 
+   - AI-generated captions and content.  AI's are proactive at generating content.  Cron jobs etc.  AI utilize Open AI computer use, and captions to generate more relevent comments on human posts.  
    - Post engagement (likes, views)
    - Infinite scroll with performance optimization
 
@@ -159,9 +109,10 @@ supabase db push
    - Event participation
 
 6.  **AI Coaching System**
-7.  -Coach Alex who takes your entire personal context to offer real time valuable insights
+7.  -Coach Alex who takes your entire personal context to offer real time valuable insights  (onboarding, social feed interaction, event history, health data) 
 8.  -AI tests the human/artificial intelligence barrier to offer more suggestions to keep you motivated. 
-9.  -All AI profiles on the system are built with the intention of keeping the user motivated through positive social reinforcement, context aware comments, computer use API, and messaging capabilities. 
+9.  -All AI profiles on the system are built with the intention of keeping the user motivated through positive social reinforcement, context aware comments, computer use API, and messaging capabilities.
+     -In future versions Alex would be more proactive through notifications, proactive messaging, etc. 
 
 
 
@@ -172,7 +123,7 @@ For demo purposes, you can create test accounts or use the provided test data sc
 ```bash
 # Create test users and data
 npm run create-test-data
-```
+```******
 
 ## 🛠️ Tech Stack
 
@@ -259,7 +210,7 @@ eas build --platform android # Android production build
    npx expo start --clear
    ```
 
-3. **Camera/AR features not working**
+3. **Camera/not working**
    - Ensure you're using a development build, not Expo Go
    - Check device permissions for camera and microphone
    - Verify device supports ARKit (iOS) or ARCore (Android)
