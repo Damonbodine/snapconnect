@@ -132,6 +132,7 @@ class AutoEventService {
         cost_cents: 0, // AI workouts are free
         cost_currency: 'USD',
         visibility: options.visibility || 'public',
+        workout_details: workout, // Save the complete workout data
       };
 
       // Create the event

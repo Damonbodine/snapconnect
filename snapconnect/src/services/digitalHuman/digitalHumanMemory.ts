@@ -3,8 +3,8 @@
  * Manages persistent conversation memory and relationship tracking for AI personas
  */
 
-import { supabase } from './supabase';
-import { healthAIService } from './healthAIService';
+import { supabase } from '../supabase';
+import { healthAIService } from '../healthAIService';
 
 export interface ConversationMemory {
   memory_id: string;

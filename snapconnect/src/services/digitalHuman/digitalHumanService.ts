@@ -3,7 +3,7 @@
  * Core engine for creating and managing complete digital human personalities
  */
 
-import { supabase } from './supabase';
+import { supabase } from '../supabase';
 import { 
   DigitalHuman, 
   CorePersonality, 
@@ -14,8 +14,8 @@ import {
   PersonalityEvolution,
   MoodState,
   LifeEventEngine
-} from '../types/digitalHuman';
-import { DIVERSE_AI_PERSONALITIES } from '../types/aiPersonality';
+} from '../../types/digitalHuman';
+import { DIVERSE_AI_PERSONALITIES } from '../../types/aiPersonality';
 
 export class DigitalHumanService {
   private static instance: DigitalHumanService;

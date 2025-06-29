@@ -7,7 +7,7 @@ import { SimpleViewTracker } from './SimpleViewTracker';
 import { useSecurityContext } from '../../contexts/SecurityContext';
 import { gradients } from '../../styles/gradients';
 import { CommentsList } from '../comments/CommentsList';
-import { commentService } from '../../services/commentService';
+import { commentService, CommentWithUser } from '../../services/commentService';
 import { likeService } from '../../services/likeService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -103,6 +103,28 @@ export const PostFeedCard: React.FC<PostFeedCardProps> = ({
     console.log(`🔥 POSTCARD: User ${post.users.username} pressed`);
     onUserPress?.(post);
   }, [post, onUserPress]);
+
+  const handleCommentUserPress = useCallback((comment: CommentWithUser) => {
+    console.log(`🔥 POSTCARD: Comment user ${comment.username} pressed`);
+    
+    // Close the comments modal first, then navigate
+    setShowComments(false);
+    
+    // Small delay to ensure modal closes before navigation
+    setTimeout(() => {
+      // Create a compatible object for navigation by transforming CommentWithUser to expected format
+      const userProfileData = {
+        user_id: comment.user_id,
+        users: {
+          username: comment.username,
+          full_name: comment.full_name,
+          avatar_url: comment.avatar_url,
+          fitness_level: comment.fitness_level,
+        }
+      } as PostWithUser;
+      onUserPress?.(userProfileData);
+    }, 100);
+  }, [onUserPress]);
 
   const handleCommentsPress = useCallback(() => {
     setShowComments(true);
@@ -537,6 +559,7 @@ export const PostFeedCard: React.FC<PostFeedCardProps> = ({
           <CommentsList 
             postId={post.id} 
             isVisible={showComments}
+            onUserPress={handleCommentUserPress}
           />
         </KeyboardAvoidingView>
       </Modal>

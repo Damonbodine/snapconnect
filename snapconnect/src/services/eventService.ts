@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { LocationCoordinates, locationService } from './locationService';
+import { GeneratedWorkout } from './groqService';
 
 export interface EventCategory {
   id: string;
@@ -53,6 +54,9 @@ export interface Event {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  
+  // Workout details for AI-generated workout events
+  workout_details?: GeneratedWorkout | null;
 }
 
 export interface EventParticipant {
@@ -88,6 +92,7 @@ export interface CreateEventData {
   cost_currency?: string;
   visibility?: 'public' | 'friends' | 'private';
   cover_image?: string;
+  workout_details?: GeneratedWorkout;
 }
 
 export interface EventFilters {
@@ -142,6 +147,8 @@ class EventService {
         latitude: eventData.location_coordinates.latitude,
         longitude: eventData.location_coordinates.longitude,
       }),
+      // Store workout details if provided
+      workout_details: eventData.workout_details || null,
     };
 
     const { data, error } = await supabase

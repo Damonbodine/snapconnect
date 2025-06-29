@@ -4,8 +4,8 @@
  * These are real people who love fitness, not fitness coaches
  */
 
-import { AIPersonaProfile } from './aiChatService';
-import { AI_ARCHETYPES } from '../types/aiPersonality';
+import { AIPersonaProfile } from '../aiChatService';
+import { AI_ARCHETYPES } from '../../types/aiPersonality';
 
 interface LifeStory {
   background: string;

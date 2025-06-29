@@ -264,9 +264,10 @@ export default function ProfileScreen() {
           </View>
         </View>
         
-        
-
-
+        {/* Friends Section */}
+        {friends.length > 0 && (
+          <FriendsRow friends={friends} friendsCount={friends.length} />
+        )}
 
         {/* Friend Requests Section */}
         {pendingRequests.length > 0 && (

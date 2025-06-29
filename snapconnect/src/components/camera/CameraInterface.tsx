@@ -33,6 +33,7 @@ import { FaceOverlay } from './FaceOverlay';
 import { FilterSelector } from './FilterSelector';
 import { LiveFilterOverlay } from './LiveFilterOverlay';
 import { InteractiveFilterOverlay } from './InteractiveFilterOverlay';
+import { TextInputModal } from './TextInputModal';
 import { FILTER_LIBRARY, getDefaultFilter } from '../../constants/filters';
 import { NativeFilterCompositor } from '../../services/nativeFilterCompositor';
 
@@ -62,6 +63,10 @@ export const CameraInterface: React.FC<CameraInterfaceProps> = ({
   const [showFilterSelector, setShowFilterSelector] = useState(false);
   const [isComposingFilter, setIsComposingFilter] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState<{uri: string; width: number; height: number} | null>(null);
+  
+  // Text input modal state
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [isEditingText, setIsEditingText] = useState(false);
   
   // User filter customization state
   const [filterTransform, setFilterTransform] = useState({
@@ -132,20 +137,68 @@ export const CameraInterface: React.FC<CameraInterfaceProps> = ({
   
   // Filter selection handler
   const handleFilterSelect = (filter: FilterAsset) => {
-    setActiveFilter(filter);
-    setShowFilterSelector(false);
-    // Reset transform when changing filters
-    setFilterTransform({
-      scale: 1,
-      x: 0,
-      y: 0,
-      rotation: 0,
-    });
+    if (filter.type === 'text' && filter.id === 'custom_text') {
+      // Open text input modal for custom text
+      setShowTextInput(true);
+      setShowFilterSelector(false);
+    } else {
+      setActiveFilter(filter);
+      setShowFilterSelector(false);
+      // Reset transform when changing filters
+      setFilterTransform({
+        scale: 1,
+        x: 0,
+        y: 0,
+        rotation: 0,
+      });
+    }
   };
   
   // Filter transform handler
   const handleFilterTransformChange = (newTransform: typeof filterTransform) => {
     setFilterTransform(newTransform);
+  };
+
+  // Text input submission handler
+  const handleTextSubmit = (text: string, options: any) => {
+    const customTextFilter: FilterAsset = {
+      id: 'custom_text_active',
+      name: 'Custom Text',
+      type: 'text',
+      category: 'text',
+      thumbnail: '📝',
+      asset: text,
+      customText: text,
+      textColor: options.color,
+      fontSize: options.fontSize,
+      fontWeight: options.fontWeight,
+      fontStyle: options.fontStyle,
+    };
+    
+    setActiveFilter(customTextFilter);
+    setShowTextInput(false);
+    
+    // Only reset transform for new text, not edited text
+    if (!isEditingText) {
+      setFilterTransform({
+        scale: 1,
+        x: 0,
+        y: 0,
+        rotation: 0,
+      });
+    }
+    // For edited text, keep the current transform (position, scale, rotation)
+    // The filterTransform state already contains the user's adjustments
+    
+    setIsEditingText(false);
+  };
+
+  // Edit text handler
+  const handleEditText = () => {
+    if (activeFilter.type === 'text') {
+      setIsEditingText(true);
+      setShowTextInput(true);
+    }
   };
   
   // Toggle filter selector
@@ -754,6 +807,7 @@ export const CameraInterface: React.FC<CameraInterfaceProps> = ({
         isVisible={!isComposingFilter && !isRecording && !showFilterSelector}
         transform={filterTransform}
         onTransformChange={handleFilterTransformChange}
+        onEditText={handleEditText}
         cameraAspectRatio={9/16} // Portrait mode
       />
       
@@ -788,6 +842,12 @@ export const CameraInterface: React.FC<CameraInterfaceProps> = ({
           <Pressable style={styles.controlButton} onPress={toggleFilterSelector}>
             <BlurView intensity={20} style={styles.blurButton}>
               <Text style={styles.controlIcon}>✨</Text>
+            </BlurView>
+          </Pressable>
+          
+          <Pressable style={styles.controlButton} onPress={() => setShowTextInput(true)}>
+            <BlurView intensity={20} style={styles.blurButton}>
+              <Text style={styles.controlIcon}>📝</Text>
             </BlurView>
           </Pressable>
         </View>
@@ -860,6 +920,25 @@ export const CameraInterface: React.FC<CameraInterfaceProps> = ({
           onComplete={handleFilterCompositionComplete}
         />
       )}
+      
+      {/* Text Input Modal */}
+      <TextInputModal
+        isVisible={showTextInput}
+        onClose={() => {
+          setShowTextInput(false);
+          setIsEditingText(false);
+        }}
+        onSubmit={handleTextSubmit}
+        initialText={isEditingText ? activeFilter.customText || '' : ''}
+        initialOptions={isEditingText ? {
+          color: activeFilter.textColor || '#FFFFFF',
+          fontSize: activeFilter.fontSize || 24,
+          fontWeight: activeFilter.fontWeight || 'normal',
+          fontStyle: activeFilter.fontStyle || 'normal',
+          fontFamily: 'System'
+        } : undefined}
+        isEditing={isEditingText}
+      />
     </View>
   );
 };

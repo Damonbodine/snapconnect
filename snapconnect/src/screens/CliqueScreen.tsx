@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, ActivityIndicator, SafeAreaView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { GradientCard } from '../components/ui/GradientCard';
 import { GlassCard } from '../components/ui/GlassCard';
 import { AppHeader } from '../components/ui/AppHeader';
@@ -8,6 +9,10 @@ import { useAuthStore } from '../stores/authStore';
 import { workoutNotesService, WorkoutNote } from '../services/workoutNotesService';
 import { AddWorkoutNoteModal } from '../components/workout/AddWorkoutNoteModal';
 import { workoutBuddyService, WorkoutBuddy } from '../services/workoutBuddyService';
+import { groupService, Group } from '../services/groupService';
+import { GroupMembersModal } from '../components/groups/GroupMembersModal';
+import { discoverUsersService, DiscoverableUser } from '../services/discoverUsersService';
+import { supabase } from '../services/supabase';
 
 export const CliqueScreen = () => {
   const { user } = useAuthStore();
@@ -18,12 +23,20 @@ export const CliqueScreen = () => {
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [workoutBuddies, setWorkoutBuddies] = useState<WorkoutBuddy[]>([]);
   const [buddiesLoading, setBuddiesLoading] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [discoverableUsers, setDiscoverableUsers] = useState<DiscoverableUser[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
 
-  // Fetch workout notes and buddies when user is available
+  // Fetch workout notes, buddies, groups, and discoverable users when user is available
   useEffect(() => {
     if (user) {
       fetchWorkoutNotes();
       fetchWorkoutBuddies();
+      fetchGroups();
+      fetchDiscoverableUsers();
     }
   }, [user]);
 
@@ -51,17 +64,54 @@ export const CliqueScreen = () => {
     }
   };
 
-  const groups = [
-    { id: '1', name: 'Running Club', members: 24, activity: 'Planning weekend 10K' },
-    { id: '2', name: 'Gym Buddies', members: 12, activity: 'Sharing workout splits' },
-    { id: '3', name: 'Yoga Flow', members: 18, activity: 'New morning routine' },
-  ];
+  const fetchGroups = async () => {
+    try {
+      setGroupsLoading(true);
+      const groupsData = await groupService.getGroups();
+      setGroups(groupsData);
+    } catch (error) {
+      console.error('Failed to fetch groups:', error);
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  const fetchDiscoverableUsers = async () => {
+    if (!user?.id) {
+      console.log('❌ No user ID available for discoverable users');
+      return;
+    }
+    
+    try {
+      console.log('🔍 Fetching discoverable users for:', user.id);
+      setDiscoverLoading(true);
+      
+      // Try to get users excluding friends first, fallback to all users
+      let users: DiscoverableUser[] = [];
+      try {
+        users = await discoverUsersService.getDiscoverableUsers(user.id, 6);
+      } catch (friendshipError) {
+        console.log('⚠️ Friendship query failed, falling back to all users');
+        users = await discoverUsersService.getAllUsersExceptCurrent(user.id, 6);
+      }
+      
+      setDiscoverableUsers(users);
+      console.log('✅ Found discoverable users:', users.length);
+    } catch (error) {
+      console.error('❌ Failed to fetch discoverable users:', error);
+      setDiscoverableUsers([]);
+    } finally {
+      setDiscoverLoading(false);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
       fetchWorkoutNotes(),
       fetchWorkoutBuddies(),
+      fetchGroups(),
+      fetchDiscoverableUsers(),
     ]);
     setRefreshing(false);
   };
@@ -88,8 +138,30 @@ export const CliqueScreen = () => {
   };
 
   const handleBuddyPress = (buddy: WorkoutBuddy) => {
-    console.log('Buddy pressed:', buddy.username);
-    // TODO: Navigate to user profile or send message
+    console.log('Navigating to workout buddy profile:', buddy.username);
+    router.push(`/user/${buddy.id}`);
+  };
+
+  const handleGroupPress = async (group: Group) => {
+    if (group.user_is_member) {
+      // Show group members
+      setSelectedGroup(group);
+      setShowGroupMembers(true);
+    } else {
+      try {
+        await groupService.joinGroup(group.id);
+        console.log('Joined group:', group.name);
+        // Refresh groups to update membership status
+        fetchGroups();
+      } catch (error) {
+        console.error('Failed to join group:', error);
+      }
+    }
+  };
+
+  const handleDiscoverableUserPress = (discoverableUser: DiscoverableUser) => {
+    console.log('Navigating to discoverable user profile:', discoverableUser.username);
+    router.push(`/user/${discoverableUser.id}`);
   };
 
 
@@ -231,10 +303,13 @@ export const CliqueScreen = () => {
                         {buddy.time}
                       </Text>
                     </View>
-                    <View className="bg-white/10 px-2 py-1 rounded-full">
-                      <Text className="text-white/70 text-xs capitalize">
-                        {buddy.archetype?.name?.replace('_', ' ') || 'AI User'}
-                      </Text>
+                    <View className="flex-row items-center">
+                      <View className="bg-white/10 px-2 py-1 rounded-full mr-2">
+                        <Text className="text-white/70 text-xs capitalize">
+                          {buddy.archetype?.name?.replace('_', ' ') || 'AI User'}
+                        </Text>
+                      </View>
+                      <Text className="text-white/40 text-lg">›</Text>
                     </View>
                   </View>
                 </GlassCard>
@@ -247,13 +322,31 @@ export const CliqueScreen = () => {
           <Text className="text-white text-lg font-semibold mb-4">
             👥 Groups
           </Text>
+          
+          {groupsLoading && (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" color="#EC4899" />
+              <Text className="text-white/70 text-sm mt-2">Loading groups...</Text>
+            </View>
+          )}
+          
+          {!groupsLoading && groups.length === 0 && (
+            <GlassCard>
+              <View className="items-center py-4">
+                <Text className="text-white/70 text-center">
+                  No groups available right now
+                </Text>
+              </View>
+            </GlassCard>
+          )}
+          
           <View className="space-y-3">
             {groups.map((group) => (
               <GradientCard 
                 key={group.id} 
                 gradient="primary" 
                 className="w-full"
-                onPress={() => console.log('Group pressed:', group.name)}
+                onPress={() => handleGroupPress(group)}
               >
                 <View className="flex-row justify-between items-start">
                   <View className="flex-1">
@@ -261,15 +354,21 @@ export const CliqueScreen = () => {
                       {group.name}
                     </Text>
                     <Text className="text-white/80 text-sm mb-2">
-                      {group.members} members
+                      {group.member_count} members
                     </Text>
-                    <Text className="text-white/70 text-sm">
-                      💬 {group.activity}
-                    </Text>
+                    {group.last_activity && (
+                      <Text className="text-white/70 text-sm">
+                        💬 {group.last_activity}
+                      </Text>
+                    )}
                   </View>
-                  <View className="bg-white/20 px-3 py-1 rounded-full">
+                  <View className={`px-3 py-1 rounded-full ${
+                    group.user_is_member 
+                      ? 'bg-green-500/20' 
+                      : 'bg-white/20'
+                  }`}>
                     <Text className="text-white text-xs font-medium">
-                      Active
+                      {group.user_is_member ? 'Joined' : 'Join'}
                     </Text>
                   </View>
                 </View>
@@ -282,20 +381,74 @@ export const CliqueScreen = () => {
           <Text className="text-white text-lg font-semibold mb-4">
             ✨ Find Your Tribe
           </Text>
-          <GlassCard>
-            <Text className="text-white text-sm mb-3 font-medium">
-              AI-Powered Workout Buddy Matching
-            </Text>
-            <Text className="text-white/80 text-sm mb-2">
-              • Found 3 runners with similar pace in your area
-            </Text>
-            <Text className="text-white/80 text-sm mb-2">
-              • 2 gym partners looking for morning workout buddies
-            </Text>
-            <Text className="text-white/80 text-sm">
-              • Join "Beginner Yoga" group - perfect match for your goals
-            </Text>
-          </GlassCard>
+          
+          {discoverLoading && (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" color="#EC4899" />
+              <Text className="text-white/70 text-sm mt-2">Finding people...</Text>
+            </View>
+          )}
+          
+          {!discoverLoading && discoverableUsers.length === 0 && (
+            <GlassCard>
+              <View className="items-center py-4">
+                <Text className="text-4xl mb-2">👥</Text>
+                <Text className="text-white font-semibold mb-2">No users to discover</Text>
+                <Text className="text-white/70 text-center text-sm">
+                  Invite friends to join your fitness journey!
+                </Text>
+              </View>
+            </GlassCard>
+          )}
+          
+          <View className="space-y-3">
+            {discoverableUsers.map((user) => (
+              <Pressable key={user.id} onPress={() => handleDiscoverableUserPress(user)}>
+                <GlassCard>
+                  <View className="flex-row items-center">
+                    <View className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full items-center justify-center mr-3">
+                      <Text className="text-white font-bold text-sm">
+                        {user.full_name 
+                          ? user.full_name.split(' ').map(n => n[0]).join('')
+                          : user.username.slice(0, 2).toUpperCase()
+                        }
+                      </Text>
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center">
+                        <Text className="text-white font-semibold">
+                          {user.full_name || user.username}
+                        </Text>
+                        <Text className="text-white/50 text-xs ml-2">
+                          @{user.username}
+                        </Text>
+                        {user.is_ai_user && (
+                          <View className="bg-blue-500/20 px-2 py-1 rounded-full ml-2">
+                            <Text className="text-blue-300 text-xs font-medium">
+                              AI
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {user.fitness_level && (
+                        <Text className="text-white/60 text-xs mt-1 capitalize">
+                          {user.fitness_level} level
+                        </Text>
+                      )}
+                      {user.bio && (
+                        <Text className="text-white/60 text-xs mt-1" numberOfLines={1}>
+                          {user.bio}
+                        </Text>
+                      )}
+                    </View>
+                    <View className="ml-2">
+                      <Text className="text-white/40 text-lg">›</Text>
+                    </View>
+                  </View>
+                </GlassCard>
+              </Pressable>
+            ))}
+          </View>
         </View>
         </ScrollView>
         
@@ -305,6 +458,16 @@ export const CliqueScreen = () => {
           onClose={() => setShowAddNoteModal(false)}
           onNoteAdded={handleNoteAdded}
         />
+        
+        {/* Group Members Modal */}
+        {selectedGroup && (
+          <GroupMembersModal
+            visible={showGroupMembers}
+            onClose={() => setShowGroupMembers(false)}
+            groupId={selectedGroup.id}
+            groupName={selectedGroup.name}
+          />
+        )}
       </SafeAreaView>
     </LinearGradient>
   );

@@ -243,9 +243,6 @@ export default function MessagesScreen() {
               </View>
             )}
           </View>
-          <Text className="text-gray-400 text-sm mt-1">
-            Ephemeral messages • Disappear after viewing
-          </Text>
         </View>
 
         {/* Conversations List */}

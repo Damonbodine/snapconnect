@@ -15,11 +15,13 @@ import { CommentInput } from './CommentInput';
 interface CommentsListProps {
   postId: string;
   isVisible: boolean;
+  onUserPress?: (comment: CommentWithUser) => void;
 }
 
 export const CommentsList: React.FC<CommentsListProps> = ({
   postId,
   isVisible,
+  onUserPress,
 }) => {
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -122,8 +124,9 @@ export const CommentsList: React.FC<CommentsListProps> = ({
       comment={item}
       onCommentUpdated={handleCommentUpdated}
       onCommentDeleted={handleCommentDeleted}
+      onUserPress={onUserPress}
     />
-  ), [handleCommentUpdated, handleCommentDeleted]);
+  ), [handleCommentUpdated, handleCommentDeleted, onUserPress]);
 
   const renderEmptyState = () => {
     if (isLoading) {

@@ -33,7 +33,7 @@ class AIMessagingSchedulerService {
       // Initialize AI message handler for reactive responses
       await aiMessageHandler.initialize();
 
-      // Start proactive message checking
+      // Re-enable proactive message checking
       this.startProactiveMessageScheduler();
 
       this.isInitialized = true;

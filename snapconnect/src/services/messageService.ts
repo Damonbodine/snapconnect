@@ -34,6 +34,7 @@ export interface SendMessageParams {
   content?: string;
   mediaUrl?: string;
   mediaType?: 'photo' | 'video';
+  senderId?: string; // Optional - will be derived from auth if not provided
 }
 
 class MessageService {

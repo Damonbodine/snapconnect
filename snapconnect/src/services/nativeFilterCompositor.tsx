@@ -41,8 +41,8 @@ export const NativeFilterCompositor: React.FC<NativeFilterCompositorProps> = ({
     
     // Use actual screen dimensions for coordinate conversion
     
-    // Base font size matching the interactive overlay (60px base)
-    let baseFontSize = 60;
+    // Base font size matching the interactive overlay
+    let baseFontSize = filter.type === 'text' ? (filter.fontSize || 24) : 60;
     
     // Apply user's scale transform (same as interactive overlay)
     const fontSize = Math.max(baseFontSize * transform.scale, 12);
@@ -185,18 +185,21 @@ export const NativeFilterCompositor: React.FC<NativeFilterCompositorProps> = ({
       {imageLoaded && (
         <Text
           style={[
-            styles.filterText,
+            filter.type === 'text' ? styles.customText : styles.filterText,
             {
               left: position.x,
               top: position.y,
               fontSize: position.fontSize,
+              color: filter.textColor || 'white',
+              fontWeight: filter.fontWeight || 'bold',
+              fontStyle: filter.fontStyle || 'normal',
               transform: [
                 { rotate: `${position.rotation}rad` }
               ],
             }
           ]}
         >
-          {filter.asset}
+          {filter.type === 'text' ? (filter.customText || 'Add Text') : filter.asset}
         </Text>
       )}
     </View>
@@ -218,6 +221,14 @@ const styles = StyleSheet.create({
   filterText: {
     position: 'absolute',
     color: 'white',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+    fontWeight: 'bold',
+  },
+  customText: {
+    position: 'absolute',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 2, height: 2 },

@@ -14,6 +14,7 @@ export interface Friend {
   created_at: string;
   friendship_id: string;
   friendship_created_at: string;
+  is_mock_user?: boolean; // Flag to identify AI users
 }
 
 export interface FriendRequest {

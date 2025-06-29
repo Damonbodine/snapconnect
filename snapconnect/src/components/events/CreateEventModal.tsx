@@ -40,7 +40,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
 
   const handleCreateEvent = async () => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to create an event');
+      Alert.alert('Error', 'You must be logged in to create a workout');
       return;
     }
 
@@ -54,7 +54,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       
       Alert.alert(
         'Success! 🎉',
-        'Your event has been created successfully!',
+        'Your workout has been created successfully!',
         [
           {
             text: 'Done',
@@ -63,13 +63,13 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create event. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to create workout. Please try again.');
     }
   };
 
   const handleCancel = () => {
     Alert.alert(
-      'Cancel Event Creation',
+      'Cancel Workout Creation',
       'Are you sure you want to cancel? Your changes will be lost.',
       [
         { text: "Don't Cancel", style: 'cancel' },
@@ -113,7 +113,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 </GlassCard>
               </Pressable>
               
-              <Text className="text-white text-xl font-bold">Create Event</Text>
+              <Text className="text-white text-xl font-bold">Create Workout</Text>
               
               <View className="w-16" />
             </View>
@@ -132,14 +132,14 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               </GlassCard>
             )}
 
-            {/* Event Title */}
+            {/* Workout Title */}
             <View className="mb-6">
-              <Text className="text-white text-lg font-semibold mb-3">Event Title *</Text>
+              <Text className="text-white text-lg font-semibold mb-3">Workout Title *</Text>
               <GlassCard>
                 <TextInput
                   value={formData.title}
                   onChangeText={(text) => updateFormData({ title: text })}
-                  placeholder="What's your event called?"
+                  placeholder="What's your workout called?"
                   placeholderTextColor="#9CA3AF"
                   className="text-white text-base"
                   maxLength={100}
@@ -147,7 +147,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               </GlassCard>
             </View>
 
-            {/* Event Description */}
+            {/* Workout Description */}
             <View className="mb-6">
               <Text className="text-white text-lg font-semibold mb-3">Description</Text>
               <GlassCard>

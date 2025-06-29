@@ -84,14 +84,14 @@ export const RSVPStatsCard: React.FC<RSVPStatsCardProps> = ({
             {/* Main Stats Grid */}
             <View className="flex-row space-x-3">
               <View className="flex-1 bg-white/10 rounded-lg p-3">
-                <Text className="text-white/80 text-xs text-center">Events Joined</Text>
+                <Text className="text-white/80 text-xs text-center">Workouts Joined</Text>
                 <Text className="text-white text-xl font-bold text-center">
                   {stats.totalEventsRSVP}
                 </Text>
               </View>
               
               <View className="flex-1 bg-white/10 rounded-lg p-3">
-                <Text className="text-white/80 text-xs text-center">Events Created</Text>
+                <Text className="text-white/80 text-xs text-center">Workouts Created</Text>
                 <Text className="text-white text-xl font-bold text-center">
                   {stats.totalEventsCreated}
                 </Text>
@@ -114,6 +114,11 @@ export const RSVPStatsCard: React.FC<RSVPStatsCardProps> = ({
                     {stats.currentStreak} day streak
                   </Text>
                 </View>
+                {stats.bestStreak > stats.currentStreak && (
+                  <Text className="text-white/60 text-xs text-center mt-1">
+                    Best: {stats.bestStreak} days
+                  </Text>
+                )}
               </View>
               
               <View className="flex-1 bg-white/5 rounded-lg p-3">

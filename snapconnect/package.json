@@ -27,7 +27,15 @@
     "bot:scheduler:social": "npx tsx scripts/botScheduler.ts social",
     "bot:scheduler:friends": "npx tsx scripts/botScheduler.ts friends",
     "bot:scheduler:health": "npx tsx scripts/botScheduler.ts health",
-    "test:digital-humans": "npx tsx scripts/testDigitalHumanMemory.ts"
+    "test:digital-humans": "npx tsx scripts/testDigitalHumanMemory.ts",
+    "human-bot:test": "npx tsx scripts/humanBotTest.ts",
+    "human-bot:health": "npx tsx scripts/humanBotHealthCheck.ts",
+    "human-bot:photos": "npx tsx scripts/humanBotPhotosComments.ts",
+    "human-bot:discover": "npx tsx scripts/humanBotDiscoverComments.ts",
+    "human-bot:social": "npx tsx scripts/humanBotSocialEngagement.ts",
+    "human-bot:scheduler": "npx tsx scripts/humanBotScheduler.ts",
+    "bot:join-groups": "npx tsx scripts/botGroupJoiner.ts",
+    "bot:like-posts": "npx tsx scripts/botLiker.ts"
   },
   "dependencies": {
     "@babel/runtime": "^7.27.6",

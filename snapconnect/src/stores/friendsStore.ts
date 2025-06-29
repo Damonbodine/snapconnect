@@ -230,18 +230,71 @@ export const useFriendsStore = create<FriendsStore>()(
             set({ isLoading: true, error: null });
             console.log('👥 Fetching friends list');
 
+            // Get regular friends
             const friends = await friendService.getFriends();
             const friendsCount = await friendService.getFriendsCount();
             
-            set({ 
-              friends, 
-              friendsCount,
-              totalFriendsCount: friendsCount,
-              isLoading: false,
-              lastFetchTime: Date.now()
-            });
-            
-            console.log('✅ Friends fetched:', friends.length);
+            // Also get AI users and add them as available contacts
+            try {
+              console.log('🤖 Attempting to fetch AI users with get_ai_users...');
+              const { data: aiUsers, error: aiError } = await supabase.rpc('get_ai_users');
+              console.log('🤖 AI users fetch result:', { error: aiError, dataLength: aiUsers?.length });
+              
+              if (aiError) {
+                console.error('❌ AI users fetch error:', aiError);
+              }
+              
+              if (!aiError && aiUsers && aiUsers.length > 0) {
+                console.log('🤖 Adding AI users to friends list:', aiUsers.length);
+                console.log('🤖 Sample AI user:', aiUsers[0]);
+                
+                // Convert AI users to Friend format
+                const aiFriends: Friend[] = aiUsers.map((aiUser: any) => ({
+                  id: aiUser.user_id,
+                  username: aiUser.username,
+                  full_name: aiUser.full_name,
+                  avatar_url: aiUser.avatar_url,
+                  fitness_level: 'intermediate', // Default level for AI users
+                  created_at: aiUser.created_at,
+                  friendship_id: 'ai-user-' + aiUser.user_id, // Special ID for AI users
+                  friendship_created_at: aiUser.created_at,
+                  is_mock_user: true, // Flag to identify AI users
+                }));
+                
+                // Add AI users to friends list
+                const combinedFriends = [...friends, ...aiFriends];
+                
+                set({ 
+                  friends: combinedFriends, 
+                  friendsCount: combinedFriends.length,
+                  totalFriendsCount: combinedFriends.length,
+                  isLoading: false,
+                  lastFetchTime: Date.now()
+                });
+                
+                console.log('✅ Combined friends fetched:', combinedFriends.length, '(including', aiFriends.length, 'AI users)');
+              } else {
+                // Fallback to regular friends only
+                set({ 
+                  friends, 
+                  friendsCount,
+                  totalFriendsCount: friendsCount,
+                  isLoading: false,
+                  lastFetchTime: Date.now()
+                });
+                
+                console.log('✅ Friends fetched:', friends.length, '(no AI users available)');
+              }
+            } catch (aiError) {
+              console.warn('⚠️ Could not fetch AI users, using regular friends only:', aiError);
+              set({ 
+                friends, 
+                friendsCount,
+                totalFriendsCount: friendsCount,
+                isLoading: false,
+                lastFetchTime: Date.now()
+              });
+            }
             
           } catch (error: any) {
             console.error('❌ Error fetching friends:', error);

@@ -12,6 +12,7 @@ import { WorkoutCreator } from '../components/events/WorkoutCreator';
 import { WalkGenerator } from '../components/events/WalkGenerator';
 import { RouteMap } from '../components/events/RouteMap';
 import { EventParticipants } from '../components/events/EventParticipants';
+import { EventDetailModal } from '../components/events/EventDetailModal';
 import { useEventStore } from '../stores/eventStore';
 import { useAuthStore } from '../stores/authStore';
 import { eventService } from '../services/eventService';
@@ -41,6 +42,8 @@ export const EventsScreen = () => {
   } = useEventStore();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [showEventDetail, setShowEventDetail] = useState(false);
 
   useEffect(() => {
     loadEvents();
@@ -109,6 +112,16 @@ export const EventsScreen = () => {
     handleRefresh();
   };
 
+  const handleEventPress = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setShowEventDetail(true);
+  };
+
+  const handleCloseEventDetail = () => {
+    setShowEventDetail(false);
+    setSelectedEventId(null);
+  };
+
 
   const getCurrentEvents = () => {
     return events;
@@ -149,7 +162,7 @@ export const EventsScreen = () => {
       className="flex-1"
     >
       <SafeAreaView className="flex-1">
-        <AppHeader title="Events" />
+        <AppHeader title="Workouts" />
         
         <ScrollView 
           className="flex-1 px-4 pb-24"
@@ -192,7 +205,7 @@ export const EventsScreen = () => {
           <View className="mb-6">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-white text-lg font-semibold">
-                📅 Create Event
+                💪 Create Workout
               </Text>
             </View>
 
@@ -203,10 +216,10 @@ export const EventsScreen = () => {
                     <Text className="text-2xl mr-3">📝</Text>
                     <View>
                       <Text className="text-white font-medium">
-                        + Create Event
+                        + Create Workout
                       </Text>
                       <Text className="text-white/60 text-sm">
-                        Create your own fitness event
+                        Create your own group workout
                       </Text>
                     </View>
                   </View>
@@ -222,7 +235,7 @@ export const EventsScreen = () => {
           <View className="mb-6">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-white text-lg font-semibold">
-                🎟️ My RSVP'd Events
+                💪 My Workouts
               </Text>
             </View>
 
@@ -230,18 +243,21 @@ export const EventsScreen = () => {
             {isLoading ? (
               <View className="items-center py-8">
                 <ActivityIndicator size="large" color="#EC4899" />
-                <Text className="text-white/70 text-sm mt-2">Loading your events...</Text>
+                <Text className="text-white/70 text-sm mt-2">Loading your workouts...</Text>
               </View>
             ) : (
               <>
                 {/* User's RSVP'd Events */}
                 <View className="space-y-4">
                   {userRSVPEvents.map((event) => (
-                    <GradientCard 
-                      key={event.id} 
-                      gradient={getGradientForCategory(event.category?.name)}
-                      className="w-full"
+                    <Pressable 
+                      key={event.id}
+                      onPress={() => handleEventPress(event.id)}
                     >
+                      <GradientCard 
+                        gradient={getGradientForCategory(event.category?.name)}
+                        className="w-full"
+                      >
                       <View className="flex-row justify-between items-start mb-3">
                         <View className="flex-1">
                           <Text className="text-white text-lg font-semibold mb-1">
@@ -283,11 +299,14 @@ export const EventsScreen = () => {
                       </View>
 
                       {/* RSVP Button */}
-                      <RSVPButton 
-                        event={event}
-                        onRSVPChange={() => handleRefresh()}
-                      />
+                      <View onStartShouldSetResponder={() => true}>
+                        <RSVPButton 
+                          event={event}
+                          onRSVPChange={() => handleRefresh()}
+                        />
+                      </View>
                     </GradientCard>
+                    </Pressable>
                   ))}
                 </View>
 
@@ -449,6 +468,13 @@ export const EventsScreen = () => {
       <CreateEventModal 
         visible={showCreateModal}
         onClose={handleCloseModal}
+      />
+
+      {/* Event Detail Modal */}
+      <EventDetailModal 
+        visible={showEventDetail}
+        eventId={selectedEventId}
+        onClose={handleCloseEventDetail}
       />
 
       </SafeAreaView>

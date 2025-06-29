@@ -8,9 +8,8 @@ import { healthAIService, HealthCoachingRequest } from './healthAIService';
 import { messageService, SendMessageParams } from './messageService';
 import { supabase } from './supabase';
 import { AI_ARCHETYPES } from '../types/aiPersonality';
-import { digitalHumanService } from './digitalHumanService';
-import { DigitalHumanPersonality } from './digitalHumanPersonality';
-import { digitalHumanMemoryService, ConversationMemory } from './digitalHumanMemory';
+import { digitalHumanService } from './digitalHuman/digitalHumanService';
+import { DigitalHumanPersonality, digitalHumanMemoryService, digitalHumanAIService, type ConversationMemory, type DigitalHumanRequest } from './digitalHuman';
 
 export interface AIPersonaProfile {
   id: string;
@@ -156,6 +155,12 @@ class AIChatService {
         request.ai_user_id,
         request.human_user_id
       );
+      
+      if (conversationMemory) {
+        console.log(`🧠 Memory loaded: ${conversationMemory.total_conversations} conversations, ${conversationMemory.relationship_stage} relationship`);
+      } else {
+        console.log('🧠 No previous memory found - this appears to be a first conversation');
+      }
 
       // Get complete user profile for personalization
       const { data: userProfile, error: profileError } = await supabase
@@ -184,21 +189,28 @@ class AIChatService {
         userProfile
       );
 
-      // Generate response using health AI service with full context
-      const healthCoachingRequest: HealthCoachingRequest = {
-        healthContext: {
-          profile: { fitness_level: 'intermediate', goals: ['general_fitness'] },
-          currentStats: { energy_level: 5, stress_level: 3 },
-          preferences: { coaching_style: 'conversational' }
-        },
-        messageType: 'conversation', // Changed from coaching-specific types
-        userMessage: request.human_message,
-        additionalContext: comprehensiveContext,
+      // Generate response using dedicated digital human AI service
+      const digitalHumanRequest: DigitalHumanRequest = {
+        systemPrompt: systemPrompt,
+        conversationContext: comprehensiveContext,
+        currentMessage: request.human_message,
+        personaName: aiPersona.full_name,
+        personaId: aiPersona.id,
         maxTokens: this.getMaxTokensForPersona(aiPersona),
         temperature: this.getTemperatureForPersona(aiPersona),
       };
 
-      const aiResponse = await healthAIService.generateHealthCoachingMessage(healthCoachingRequest);
+      const aiResponseResult = await digitalHumanAIService.generateConversation(digitalHumanRequest);
+      
+      // Log validation results for monitoring
+      if (!aiResponseResult.isValid) {
+        console.warn(`⚠️ Digital human response validation issues for ${aiPersona.full_name}:`, aiResponseResult.validationIssues);
+        if (aiResponseResult.usedFallback) {
+          console.warn(`🔄 Used fallback service for ${aiPersona.full_name}`);
+        }
+      }
+      
+      const aiResponse = aiResponseResult.content;
       
       // Calculate realistic typing delay
       const typingDelay = this.calculateTypingDelay(aiResponse, aiPersona);
@@ -213,7 +225,12 @@ class AIChatService {
           human_message: request.human_message,
           conversation_length: conversationContext.length,
           has_memory: !!conversationMemory,
-          relationship_stage: conversationMemory?.relationship_stage || 'new_connection'
+          relationship_stage: conversationMemory?.relationship_stage || 'new_connection',
+          response_validation: {
+            is_valid: aiResponseResult.isValid,
+            used_fallback: aiResponseResult.usedFallback,
+            validation_issues: aiResponseResult.validationIssues
+          }
         },
       });
 

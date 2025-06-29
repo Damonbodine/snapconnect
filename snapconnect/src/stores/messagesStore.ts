@@ -118,6 +118,7 @@ export const useMessagesStore = create<MessagesStore>()(
             // Optimistically add message to current conversation
             const tempMessage: Partial<MessageWithUser> = {
               id: 'temp-' + Date.now(),
+              sender_id: params.senderId || '', // Use provided senderId
               receiver_id: params.receiverId,
               content: params.content || null,
               media_url: params.mediaUrl || null,
@@ -128,6 +129,7 @@ export const useMessagesStore = create<MessagesStore>()(
               viewed_at: null,
               expires_at: null,
               is_expired: false,
+              is_ai_sender: false, // Explicitly mark as not AI
             };
             
             get().optimisticallyAddMessage(tempMessage);
@@ -306,13 +308,22 @@ export const useMessagesStore = create<MessagesStore>()(
               
               if (isRelevantMessage) {
                 console.log('✅ Adding relevant message to current chat');
-                const messageWithUser: MessageWithUser = {
-                  ...newMessage,
-                  sender_username: newMessage.is_ai_sender ? 'AI Assistant' : '',
-                  receiver_username: '',
-                  is_expired: false,
-                };
-                get().optimisticallyAddMessage(messageWithUser);
+                
+                // Check if message already exists in current conversation (prevent duplicates)
+                const { currentConversation } = get();
+                const messageExists = currentConversation.some(msg => msg.id === newMessage.id);
+                
+                if (!messageExists) {
+                  const messageWithUser: MessageWithUser = {
+                    ...newMessage,
+                    sender_username: newMessage.is_ai_sender ? 'AI Assistant' : '',
+                    receiver_username: '',
+                    is_expired: false,
+                  };
+                  get().optimisticallyAddMessage(messageWithUser);
+                } else {
+                  console.log('⚠️ Message already exists, skipping duplicate');
+                }
                 
                 // Force scroll to bottom to show new message
                 setTimeout(() => {

@@ -17,12 +17,14 @@ interface CommentItemProps {
   comment: CommentWithUser;
   onCommentUpdated?: () => void;
   onCommentDeleted?: () => void;
+  onUserPress?: (comment: CommentWithUser) => void;
 }
 
 export const CommentItem: React.FC<CommentItemProps> = ({
   comment,
   onCommentUpdated,
   onCommentDeleted,
+  onUserPress,
 }) => {
   const { user } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -56,6 +58,11 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   const isOwner = user?.id === comment.user_id;
+
+  const handleUserPress = () => {
+    console.log(`🔥 COMMENT: User ${comment.username} pressed`);
+    onUserPress?.(comment);
+  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -134,7 +141,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   return (
     <View className="flex-row p-4 border-b border-gray-800/50">
       {/* Avatar */}
-      <View className="mr-3">
+      <Pressable onPress={handleUserPress} className="mr-3">
         <LinearGradient
           colors={gradients[userGradient]}
           start={{ x: 0, y: 0 }}
@@ -149,15 +156,17 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             />
           </View>
         </LinearGradient>
-      </View>
+      </Pressable>
 
       {/* Comment Content */}
       <View className="flex-1">
         {/* Header */}
         <View className="flex-row items-center mb-1">
-          <Text className="text-white font-semibold text-sm">
-            {comment.username}
-          </Text>
+          <Pressable onPress={handleUserPress}>
+            <Text className="text-white font-semibold text-sm">
+              {comment.username}
+            </Text>
+          </Pressable>
           <Text className="text-gray-500 text-xs ml-2">
             {formatRelativeTime(comment.created_at)}
           </Text>

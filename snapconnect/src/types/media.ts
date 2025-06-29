@@ -43,10 +43,16 @@ export interface FaceDetectionResult {
 export interface FilterAsset {
   id: string;
   name: string;
-  type: 'face' | 'full_screen' | '3d';
-  category: 'fitness' | 'fun' | 'workout' | 'celebration';
+  type: 'face' | 'full_screen' | '3d' | 'emoji' | 'text';
+  category: 'fitness' | 'fun' | 'workout' | 'celebration' | 'text';
   thumbnail: any; // require() asset
-  asset: any; // require() asset
+  asset: any; // require() asset or text content
   position?: 'eyes' | 'mouth' | 'forehead' | 'face' | 'full' | 'leftCheek' | 'rightCheek';
   scaleWithFace?: boolean;
+  // Text-specific properties
+  customText?: string;
+  textColor?: string;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
 }

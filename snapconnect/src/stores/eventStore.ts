@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { eventService, Event, EventCategory, CreateEventData, EventParticipant, EventFilters } from '../services/eventService';
 import { LocationCoordinates, locationService, LocationResult } from '../services/locationService';
+import { supabase } from '../services/supabase';
 import { walkSuggestionService } from '../services/walkSuggestionService';
 import { 
   WalkSuggestion, 
@@ -19,6 +20,8 @@ export interface RSVPStats {
   totalEventsCreated: number;
   totalEventsAttended: number;
   currentStreak: number; // days with activity
+  bestStreak: number; // best streak ever achieved
+  totalActivityDays: number; // total unique days with activity
   attendanceRate: number; // percentage of RSVP'd events attended
   favoriteEventCategories: Array<{
     category: string;
@@ -388,65 +391,49 @@ export const useEventStore = create<EventStore>((set, get) => ({
   // RSVP Statistics Actions
   getUserRSVPStats: async (userId: string): Promise<RSVPStats> => {
     try {
-      // Get all user events data
-      const [userRSVPEvents, userCreatedEvents] = await Promise.all([
-        eventService.getUserRSVPEvents(userId),
-        eventService.getUserCreatedEvents(userId),
-      ]);
-
-      // Calculate statistics
-      const totalEventsRSVP = userRSVPEvents.length;
-      const totalEventsCreated = userCreatedEvents.length;
-      
-      // For now, we'll mock attendance data since we don't have check-in tracking yet
-      const totalEventsAttended = Math.floor(totalEventsRSVP * 0.8); // 80% attendance rate
-      const attendanceRate = totalEventsRSVP > 0 ? (totalEventsAttended / totalEventsRSVP) * 100 : 0;
-
-      // Calculate favorite categories
-      const categoryCount: { [key: string]: number } = {};
-      [...userRSVPEvents, ...userCreatedEvents].forEach(event => {
-        if (event.category?.name) {
-          categoryCount[event.category.name] = (categoryCount[event.category.name] || 0) + 1;
-        }
+      // Use the new database function to get comprehensive stats
+      const { data, error } = await supabase.rpc('get_user_rsvp_stats', {
+        target_user_id: userId,
       });
 
-      const favoriteEventCategories = Object.entries(categoryCount)
-        .map(([category, count]) => ({ category, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      if (error) {
+        console.error('Error calling get_user_rsvp_stats:', error);
+        throw error;
+      }
 
-      // Calculate recent activity
-      const recentActivity = [
-        ...userRSVPEvents.slice(0, 5).map(event => ({
-          type: 'rsvp' as const,
-          eventTitle: event.title,
-          date: event.start_time,
-        })),
-        ...userCreatedEvents.slice(0, 3).map(event => ({
-          type: 'created' as const,
-          eventTitle: event.title,
-          date: event.created_at,
-        })),
-      ]
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10);
+      if (!data || data.length === 0) {
+        // Return default stats if no data
+        return {
+          totalEventsRSVP: 0,
+          totalEventsCreated: 0,
+          totalEventsAttended: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          totalActivityDays: 0,
+          attendanceRate: 0,
+          favoriteEventCategories: [],
+          recentActivity: [],
+          upcomingEventsCount: 0,
+        };
+      }
 
-      // Calculate upcoming events
-      const now = new Date().toISOString();
-      const upcomingEventsCount = userRSVPEvents.filter(event => event.start_time > now).length;
+      const stats = data[0];
 
-      // Calculate current streak (simplified - days with any activity)
-      const currentStreak = Math.floor(Math.random() * 14) + 1; // Mock for now
+      // Parse JSONB data from database
+      const favoriteEventCategories = stats.favorite_categories || [];
+      const recentActivity = stats.recent_activity || [];
 
       return {
-        totalEventsRSVP,
-        totalEventsCreated,
-        totalEventsAttended,
-        currentStreak,
-        attendanceRate,
+        totalEventsRSVP: stats.total_events_rsvp || 0,
+        totalEventsCreated: stats.total_events_created || 0,
+        totalEventsAttended: stats.total_events_attended || 0,
+        currentStreak: stats.current_streak || 0,
+        bestStreak: stats.best_streak || 0,
+        totalActivityDays: stats.total_activity_days || 0,
+        attendanceRate: stats.attendance_rate || 0,
         favoriteEventCategories,
         recentActivity,
-        upcomingEventsCount,
+        upcomingEventsCount: stats.upcoming_events_count || 0,
       };
     } catch (error: any) {
       console.error('Error getting RSVP stats:', error);

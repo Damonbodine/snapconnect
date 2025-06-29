@@ -1,0 +1,557 @@
+/**
+ * Coach Alex Text Chat Screen
+ * 💬 Smart fitness coaching with personalized advice 
+ * Text-based AI coach with full user context and health integration
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
+  SafeAreaView,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
+import { aiCoachService } from '../src/services/aiCoachService';
+import { healthContextService } from '../src/services/healthContextService';
+import { supabase } from '../src/services/supabase';
+
+// Chat message interface (simplified from voice version)
+interface ChatMessage {
+  id: string;
+  user_id: string;
+  message_text: string;
+  is_user_message: boolean;
+  created_at: string;
+  message_type?: 'motivation' | 'advice' | 'suggestion' | 'celebration' | 'check_in';
+}
+
+const { width, height } = Dimensions.get('window');
+
+interface ChatBubbleProps {
+  message: ChatMessage;
+  isLatest: boolean;
+}
+
+const ChatBubble: React.FC<ChatBubbleProps> = ({ message, isLatest }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const isUser = message.is_user_message;
+  const messageType = message.message_type || 'advice';
+
+  useEffect(() => {
+    if (isLatest) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }).start();
+    } else {
+      scaleAnim.setValue(1);
+    }
+  }, [isLatest]);
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  return (
+    <Animated.View 
+      style={{
+        transform: [{ scale: scaleAnim }],
+        alignSelf: isUser ? 'flex-end' : 'flex-start',
+        marginVertical: 4,
+        marginHorizontal: 16,
+        maxWidth: width * 0.8,
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: isUser ? '#7C3AED' : '#F3F4F6',
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderBottomRightRadius: isUser ? 4 : 20,
+          borderBottomLeftRadius: isUser ? 20 : 4,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+        }}
+      >
+        {/* Message type indicator for Coach Alex responses */}
+        {!isUser && messageType && (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 6,
+          }}>
+            <Text style={{
+              fontSize: 11,
+              color: '#6B7280',
+              fontWeight: '500',
+              textTransform: 'capitalize',
+            }}>
+              {messageType === 'motivation' ? '💪 Motivation' :
+               messageType === 'suggestion' ? '🏃‍♂️ Workout' :
+               messageType === 'advice' ? '💡 Advice' :
+               messageType === 'celebration' ? '🎉 Celebration' :
+               '👋 Check-in'}
+            </Text>
+          </View>
+        )}
+
+        {/* Message text */}
+        <Text
+          style={{
+            color: isUser ? '#FFFFFF' : '#1F2937',
+            fontSize: 16,
+            lineHeight: 22,
+            fontWeight: isUser ? '500' : '400',
+          }}
+          numberOfLines={isExpanded ? undefined : 10}
+          onPress={() => setIsExpanded(!isExpanded)}
+        >
+          {message.message_text}
+        </Text>
+
+        {/* Timestamp */}
+        <Text
+          style={{
+            color: isUser ? '#DDD6FE' : '#9CA3AF',
+            fontSize: 11,
+            marginTop: 4,
+            alignSelf: 'flex-end',
+            fontWeight: '500',
+          }}
+        >
+          {formatTime(message.created_at)}
+        </Text>
+      </View>
+
+      {/* Coach Alex avatar for coach messages */}
+      {!isUser && (
+        <View
+          style={{
+            position: 'absolute',
+            left: -8,
+            bottom: 0,
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: '#10B981',
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: '#FFFFFF',
+          }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#FFFFFF' }}>
+            🏃‍♂️
+          </Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+};
+
+export default function CoachChatScreen() {
+  const router = useRouter();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [healthContext, setHealthContext] = useState<any>(null);
+  
+  const flatListRef = useRef<FlatList>(null);
+
+  // Initialize chat with greeting
+  useFocusEffect(
+    useCallback(() => {
+      initializeChat();
+    }, [])
+  );
+
+  const initializeChat = async () => {
+    try {
+      setIsInitializing(true);
+      
+      // Get user and health context
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      setUserId(user.id);
+      
+      // Load health context for personalized coaching
+      const context = await healthContextService.generateCoachingContext(user.id);
+      setHealthContext(context);
+      
+      // Generate initial greeting using existing aiCoachService
+      const greetingText = await aiCoachService.generateDailyCheckIn(context.healthMetrics);
+      
+      setMessages([{
+        id: `greeting_${Date.now()}`,
+        user_id: user.id,
+        message_text: greetingText,
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'check_in'
+      }]);
+      
+    } catch (error) {
+      console.error('Failed to initialize chat:', error);
+      // Fallback greeting
+      setMessages([{
+        id: `fallback_${Date.now()}`,
+        user_id: 'system',
+        message_text: "Hi! I'm Coach Alex, your AI fitness coach. I'm here to help you with your health and fitness journey! How are you feeling today? 💪",
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'check_in'
+      }]);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  const sendTextMessage = async () => {
+    if (!inputText.trim() || isLoading || !userId || !healthContext) return;
+
+    const userMessage = inputText.trim();
+    setInputText('');
+    setIsLoading(true);
+
+    // Add user message immediately
+    const userMessageObj: ChatMessage = {
+      id: `user_${Date.now()}`,
+      user_id: userId,
+      message_text: userMessage,
+      is_user_message: true,
+      created_at: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, userMessageObj]);
+
+    try {
+      // Get Coach Alex response using existing aiCoachService
+      const responseText = await aiCoachService.handleUserMessage(userMessage, healthContext.healthMetrics);
+      
+      const coachMessage: ChatMessage = {
+        id: `coach_${Date.now()}`,
+        user_id: userId,
+        message_text: responseText,
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'advice'
+      };
+      
+      setMessages(prev => [...prev, coachMessage]);
+      
+      // Haptic feedback for successful response
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      
+      // Add fallback message on error
+      const errorMessage: ChatMessage = {
+        id: `error_${Date.now()}`,
+        user_id: userId,
+        message_text: "I'm having trouble responding right now. Please try again in a moment! 💭",
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'advice'
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Quick action handlers for different message types
+  const handleQuickAction = async (action: 'motivation' | 'advice' | 'suggestion') => {
+    if (isLoading || !healthContext) return;
+
+    setIsLoading(true);
+
+    try {
+      let responseText: string;
+      let messageType: ChatMessage['message_type'];
+
+      switch (action) {
+        case 'motivation':
+          responseText = await aiCoachService.generateMotivationalMessage(healthContext.healthMetrics);
+          messageType = 'motivation';
+          break;
+        case 'suggestion':
+          const suggestions = await aiCoachService.generateSmartSuggestions(healthContext.healthMetrics);
+          responseText = suggestions.primary;
+          messageType = 'suggestion';
+          break;
+        default:
+          responseText = await aiCoachService.generateAdviceMessage(healthContext.healthMetrics);
+          messageType = 'advice';
+      }
+
+      const coachMessage: ChatMessage = {
+        id: `coach_${Date.now()}`,
+        user_id: userId!,
+        message_text: responseText,
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: messageType
+      };
+
+      setMessages(prev => [...prev, coachMessage]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to generate quick action response:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
+    return (
+      <ChatBubble 
+        message={item} 
+        isLatest={index === messages.length - 1}
+      />
+    );
+  };
+
+  if (isInitializing) {
+    return (
+      <LinearGradient
+        colors={['#7C3AED', '#EC4899']}
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+      >
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={{ color: '#FFFFFF', fontSize: 18, marginTop: 16, fontWeight: '600' }}>
+          Starting conversation with Coach Alex...
+        </Text>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      {/* Header */}
+      <LinearGradient
+        colors={['#7C3AED', '#EC4899']}
+        style={{
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        
+        <View style={{ flex: 1, marginLeft: 16 }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>
+            Coach Alex
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: '#10B981',
+                marginRight: 6,
+              }}
+            />
+            <Text style={{ color: '#DDD6FE', fontSize: 14 }}>
+              Text Chat Ready
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Messages */}
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        style={{ flex: 1, backgroundColor: '#F9FAFB' }}
+        contentContainerStyle={{ paddingVertical: 16 }}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Quick Actions */}
+      <View style={{
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: '#F9FAFB',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+      }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+          <TouchableOpacity
+            onPress={() => handleQuickAction('motivation')}
+            disabled={isLoading}
+            style={{
+              backgroundColor: '#7C3AED',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 16,
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>
+              💪 Motivate
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => handleQuickAction('advice')}
+            disabled={isLoading}
+            style={{
+              backgroundColor: '#10B981',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 16,
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>
+              💡 Advice
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => handleQuickAction('suggestion')}
+            disabled={isLoading}
+            style={{
+              backgroundColor: '#EC4899',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 16,
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>
+              🏃‍♂️ Suggest
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Input Area */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Text input */}
+          <TextInput
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Type your message..."
+            placeholderTextColor="#9CA3AF"
+            style={{
+              flex: 1,
+              backgroundColor: '#F3F4F6',
+              borderRadius: 24,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              fontSize: 16,
+              maxHeight: 100,
+              marginRight: 12,
+            }}
+            multiline
+            onSubmitEditing={sendTextMessage}
+            returnKeyType="send"
+            editable={!isLoading}
+          />
+
+
+          {/* Send button */}
+          <TouchableOpacity
+            onPress={sendTextMessage}
+            disabled={!inputText.trim() || isLoading}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: inputText.trim() ? '#10B981' : '#E5E7EB',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons 
+                name="send" 
+                size={24} 
+                color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'} 
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+

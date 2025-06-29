@@ -149,7 +149,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, onLongPre
 export default function ChatScreen() {
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
   const { user } = useAuthStore();
-  const { friends } = useFriendsStore();
+  const { friends, fetchFriends } = useFriendsStore();
   const {
     currentConversation,
     activeFriendId,
@@ -170,9 +170,30 @@ export default function ChatScreen() {
 
   // Find friend info
   useEffect(() => {
+    console.log('🔍 Looking for friend:', friendId, 'in', friends.length, 'friends');
     if (friendId && friends.length > 0) {
       const foundFriend = friends.find(f => f.id === friendId);
+      console.log('🔍 Found friend:', foundFriend ? `${foundFriend.full_name} (${foundFriend.username})` : 'NOT FOUND');
+      
+      if (!foundFriend) {
+        // Debug why friend wasn't found
+        console.log('🔍 Searching for friendId:', friendId);
+        console.log('🔍 Available friend IDs and names:');
+        friends.slice(0, 10).forEach((f, i) => {
+          console.log(`  ${i + 1}. ID: ${f.id}, Name: ${f.full_name} (${f.username}), is_mock: ${f.is_mock_user}`);
+        });
+        
+        // Check if it's an AI user by searching AI users specifically
+        const aiUsers = friends.filter(f => f.is_mock_user === true);
+        console.log('🤖 AI users in friends list:', aiUsers.length);
+        aiUsers.forEach((ai, i) => {
+          console.log(`  AI ${i + 1}. ID: ${ai.id}, Name: ${ai.full_name} (${ai.username})`);
+        });
+      }
+      
       setFriend(foundFriend);
+    } else {
+      console.log('🔍 Friend search conditions not met:', { friendId: !!friendId, friendsLength: friends.length });
     }
   }, [friendId, friends]);
 
@@ -180,12 +201,27 @@ export default function ChatScreen() {
   useEffect(() => {
     if (friendId && friendId !== activeFriendId && user?.id) {
       console.log('📱 Loading chat with friend:', friendId);
-      setActiveFriend(friendId);
-      fetchMessagesWithFriend(friendId);
       
-      // 🔥 CRITICAL FIX: Setup real-time subscriptions for new messages
-      console.log('🔔 Setting up real-time subscriptions for chat');
-      setupRealTimeSubscriptions(user.id);
+      // Refresh friends list to make sure we have AI users - WAIT for completion
+      console.log('🔄 Force refreshing friends list to include AI users');
+      const loadChat = async () => {
+        try {
+          // Wait for friends list to be refreshed before continuing
+          await fetchFriends();
+          
+          setActiveFriend(friendId);
+          // Force cache refresh for messages to get latest messages
+          await fetchMessagesWithFriend(friendId, false);
+          
+          // 🔥 CRITICAL FIX: Setup real-time subscriptions for new messages
+          console.log('🔔 Setting up real-time subscriptions for chat');
+          setupRealTimeSubscriptions(user.id);
+        } catch (error) {
+          console.error('❌ Error loading chat:', error);
+        }
+      };
+      
+      loadChat();
     }
 
     return () => {
@@ -227,6 +263,7 @@ export default function ChatScreen() {
       await sendMessage({
         receiverId: friendId,
         content,
+        senderId: user?.id, // Pass current user ID
       });
       
       // Show AI typing indicator if messaging an AI user
@@ -264,7 +301,8 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item }: { item: MessageWithUser }) => {
     // Fix message positioning logic for AI messages
-    const isOwn = item.is_ai_sender ? false : (item.sender_id === user?.id);
+    // Handle cases where sender_id might be empty/null
+    const isOwn = item.is_ai_sender === true ? false : (item.sender_id === user?.id && item.sender_id !== '' && item.sender_id !== null);
     
     // 🔍 DIAGNOSTIC LOGGING - Track message positioning logic
     console.log('🔍 Message Positioning Debug:', {
@@ -333,7 +371,7 @@ export default function ChatScreen() {
             {friend?.full_name || friend?.username || 'Loading...'}
           </Text>
           <Text className="text-gray-400 text-sm">
-            @{friend?.username} • Ephemeral chat
+            @{friend?.username}
           </Text>
         </View>
       </View>

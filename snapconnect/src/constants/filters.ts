@@ -13,9 +13,20 @@ export const FILTER_LIBRARY: FilterAsset[] = [
     asset: '', // No asset for "none" filter
   },
   {
+    id: 'custom_text',
+    name: 'Add Text',
+    type: 'text',
+    category: 'text',
+    thumbnail: '📝',
+    asset: '',
+    customText: '',
+    textColor: '#FFFFFF',
+    fontSize: 24,
+  },
+  {
     id: 'workout_glasses',
     name: 'Sport Shades',
-    type: 'face',
+    type: 'emoji',
     category: 'fitness',
     thumbnail: '🥽', // Sport goggles emoji
     asset: '🥽',
@@ -25,7 +36,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'sweatband',
     name: 'Victory Band',
-    type: 'face',
+    type: 'emoji',
     category: 'fitness',
     thumbnail: '🎯', // Target/goal emoji
     asset: '🎯',
@@ -35,7 +46,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'fitness_crown',
     name: 'Fitness Crown',
-    type: 'face',
+    type: 'emoji',
     category: 'celebration',
     thumbnail: '🏆', // Trophy emoji
     asset: '🏆',
@@ -45,7 +56,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'energy_spark',
     name: 'Energy Spark',
-    type: 'face',
+    type: 'emoji',
     category: 'celebration',
     thumbnail: '⚡', // Lightning bolt for energy
     asset: '⚡',
@@ -55,7 +66,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'muscle_power',
     name: 'Strength Mode',
-    type: 'face',
+    type: 'emoji',
     category: 'workout',
     thumbnail: '💪', // Classic muscle emoji
     asset: '💪',
@@ -65,7 +76,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'heart_zone',
     name: 'Heart Zone',
-    type: 'face',
+    type: 'emoji',
     category: 'workout',
     thumbnail: '💓', // Beating heart emoji
     asset: '💓',
@@ -75,7 +86,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'beast_mode',
     name: 'Beast Mode',
-    type: 'face',
+    type: 'emoji',
     category: 'workout',
     thumbnail: '🦁', // Lion emoji for beast mode
     asset: '🦁',
@@ -85,7 +96,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'medal_winner',
     name: 'Medal Winner',
-    type: 'face',
+    type: 'emoji',
     category: 'celebration',
     thumbnail: '🥇', // Gold medal
     asset: '🥇',
@@ -95,7 +106,7 @@ export const FILTER_LIBRARY: FilterAsset[] = [
   {
     id: 'fire_power',
     name: 'On Fire',
-    type: 'face',
+    type: 'emoji',
     category: 'celebration',
     thumbnail: '🔥', // Fire emoji
     asset: '🔥',
@@ -125,6 +136,11 @@ export const FILTER_CATEGORIES = {
     name: 'Fun',
     icon: '😄',
     filters: FILTER_LIBRARY.filter(f => f.category === 'fun'),
+  },
+  text: {
+    name: 'Text',
+    icon: '📝',
+    filters: FILTER_LIBRARY.filter(f => f.category === 'text'),
   },
 };
 

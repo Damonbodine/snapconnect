@@ -3,7 +3,7 @@
  * Main screen for health coaching, dashboard, and AI interaction
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,21 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useHealthStore } from '../../src/stores/healthStore';
 import { aiCoachService } from '../../src/services/aiCoachService';
+import { healthContextService } from '../../src/services/healthContextService';
+import { supabase } from '../../src/services/supabase';
 import { GradientCard } from '../../src/components/ui/GradientCard';
-import { CoachCallButton } from '../../src/components/voice/CoachCallButton';
+import * as Haptics from 'expo-haptics';
 
 export default function CoachScreen() {
-  const router = useRouter();
   const {
     isInitialized,
     isLoading,
@@ -52,6 +56,14 @@ export default function CoachScreen() {
   const [requestingPermissions, setRequestingPermissions] = useState(false);
   const [showHealthStatus, setShowHealthStatus] = useState(false);
   const [showTodaysProgress, setShowTodaysProgress] = useState(false);
+  
+  // Chat interface state
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [chatHealthContext, setChatHealthContext] = useState<any>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // Initialize health store when component mounts
   useEffect(() => {
@@ -76,6 +88,42 @@ export default function CoachScreen() {
     
     checkPermissionStatus();
   }, [getPermissionStatus]);
+
+  // Initialize chat when health context is available
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        setUserId(user.id);
+        
+        // Load health context for chat
+        const context = await healthContextService.generateCoachingContext(user.id);
+        setChatHealthContext(context);
+        
+        // Initialize chat with the daily check-in message as first chat message
+        if (coachMessage && chatMessages.length === 0) {
+          const initialMessage = {
+            id: `coach_initial_${Date.now()}`,
+            user_id: user.id,
+            message_text: coachMessage,
+            is_user_message: false,
+            created_at: new Date().toISOString(),
+            message_type: 'check_in'
+          };
+          setChatMessages([initialMessage]);
+        }
+        
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+      }
+    };
+
+    if (healthContext && !chatHealthContext) {
+      initializeChat();
+    }
+  }, [healthContext, chatHealthContext, coachMessage, chatMessages.length]);
 
   const handleRequestPermissions = async () => {
     setRequestingPermissions(true);
@@ -156,6 +204,113 @@ export default function CoachScreen() {
     }
   };
 
+  // Chat message handling
+  const sendChatMessage = async () => {
+    if (!inputText.trim() || isChatLoading || !userId || !chatHealthContext) return;
+
+    const userMessage = inputText.trim();
+    setInputText('');
+    setIsChatLoading(true);
+
+    // Add user message immediately
+    const userMessageObj = {
+      id: `user_${Date.now()}`,
+      user_id: userId,
+      message_text: userMessage,
+      is_user_message: true,
+      created_at: new Date().toISOString(),
+    };
+    
+    setChatMessages(prev => [...prev, userMessageObj]);
+
+    try {
+      // Get Coach Alex response using existing aiCoachService
+      const responseText = await aiCoachService.handleUserMessage(userMessage, chatHealthContext.healthMetrics);
+      
+      const coachMessage = {
+        id: `coach_${Date.now()}`,
+        user_id: userId,
+        message_text: responseText,
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'advice'
+      };
+      
+      setChatMessages(prev => [...prev, coachMessage]);
+      
+      // Update main coach message to show latest response
+      setCoachMessage(responseText);
+      
+      // Haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to send chat message:', error);
+      
+      // Add fallback message on error
+      const errorMessage = {
+        id: `error_${Date.now()}`,
+        user_id: userId,
+        message_text: "I'm having trouble responding right now. Please try again in a moment! 💭",
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: 'advice'
+      };
+      
+      setChatMessages(prev => [...prev, errorMessage]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleChatQuickAction = async (action: 'motivation' | 'advice' | 'suggestion') => {
+    if (isChatLoading || !chatHealthContext) return;
+
+    setIsChatLoading(true);
+
+    try {
+      let responseText: string;
+      let messageType: string;
+
+      switch (action) {
+        case 'motivation':
+          responseText = await aiCoachService.generateMotivationalMessage(chatHealthContext.healthMetrics);
+          messageType = 'motivation';
+          break;
+        case 'suggestion':
+          const suggestions = await aiCoachService.generateSmartSuggestions(chatHealthContext.healthMetrics);
+          responseText = suggestions.primary;
+          messageType = 'suggestion';
+          break;
+        default:
+          // Use handleUserMessage for advice to maintain consistency
+          responseText = await aiCoachService.handleUserMessage('Give me some advice', chatHealthContext.healthMetrics);
+          messageType = 'advice';
+      }
+
+      const coachMessage = {
+        id: `coach_${Date.now()}`,
+        user_id: userId!,
+        message_text: responseText,
+        is_user_message: false,
+        created_at: new Date().toISOString(),
+        message_type: messageType
+      };
+
+      setChatMessages(prev => [...prev, coachMessage]);
+      
+      // Update main coach message too
+      setCoachMessage(responseText);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to generate quick action response:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
   // Show loading state during initialization
   if (!isInitialized) {
     return (
@@ -195,16 +350,20 @@ export default function CoachScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={['#0F0F0F', '#1F1F1F']}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       className="flex-1"
     >
-      <ScrollView 
-        className="flex-1 px-6 pt-16"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+      <LinearGradient
+        colors={['#0F0F0F', '#1F1F1F']}
+        className="flex-1"
       >
+        <ScrollView 
+          className="flex-1 px-6 pt-16"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
         {/* Header */}
         <View className="mb-8">
           <Text className="text-white text-3xl font-bold mb-2">AI Health Coach</Text>
@@ -349,81 +508,137 @@ export default function CoachScreen() {
           </GradientCard>
         </TouchableOpacity>
 
-        {/* AI Coach Message Card */}
-        <GradientCard gradient="success" className="mb-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <View className="flex-row items-center">
-              <Text className="text-2xl mr-2">🤖</Text>
-              <Text className="text-white text-xl font-bold">Coach Alex</Text>
-            </View>
-            
-            {/* 💬 TEXT CHAT BUTTON */}
+        {/* AI Coach Message Card with Integrated Chat */}
+        <GradientCard gradient="primary" className="mb-4">
+          <View className="flex-row items-center mb-3">
+            <Text className="text-2xl mr-2">🤖</Text>
+            <Text className="text-white text-xl font-bold">Coach Alex</Text>
+          </View>
+          
+          {/* Single flowing conversation - no separate sections */}
+          <View className="mb-4">
+            {chatMessages.length > 0 ? (
+              // Show conversation history
+              <FlatList
+                ref={flatListRef}
+                data={chatMessages.slice(-6)} // Show last 6 messages including intro
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={false} // Disable scrolling to prevent the "under" effect
+                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                renderItem={({ item }) => (
+                  <View className={`mb-3 ${item.is_user_message ? 'items-end' : 'items-start'}`}>
+                    {!item.is_user_message && (
+                      <View className="flex-row items-start">
+                        <View className="w-8 h-8 rounded-full bg-white/30 items-center justify-center mr-2 mt-1 border border-white/20">
+                          <Text className="text-sm">🤖</Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-white text-base leading-6 font-medium">{item.message_text}</Text>
+                          <Text className="text-white/70 text-xs mt-1">
+                            {new Date(item.created_at).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {item.is_user_message && (
+                      <View className="max-w-[85%] px-4 py-3 rounded-xl bg-white/25 rounded-br-sm border border-white/20">
+                        <Text className="text-white text-sm leading-5 font-medium">{item.message_text}</Text>
+                        <Text className="text-white/70 text-xs mt-1 text-right">
+                          {new Date(item.created_at).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              />
+            ) : (
+              // Show loading or intro message
+              isGeneratingMessage || isChatLoading ? (
+                <View className="flex-row items-center">
+                  <ActivityIndicator size="small" color="white" />
+                  <Text className="text-white/80 ml-2">Alex is thinking...</Text>
+                </View>
+              ) : (
+                <View className="flex-row items-start">
+                  <View className="w-8 h-8 rounded-full bg-white/30 items-center justify-center mr-2 mt-1 border border-white/20">
+                    <Text className="text-sm">🤖</Text>
+                  </View>
+                  <Text className="text-white text-base leading-6 flex-1 font-medium">{coachMessage}</Text>
+                </View>
+              )
+            )}
+          </View>
+
+          {/* Quick Actions */}
+          <View className="flex-row justify-between mb-4">
             <TouchableOpacity
-              onPress={() => router.push('/coach-chat')}
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: 20,
-                width: 40,
-                height: 40,
-                justifyContent: 'center',
-                alignItems: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 4,
+              onPress={() => handleChatQuickAction('motivation')}
+              disabled={isChatLoading}
+              className="bg-white/25 rounded-xl px-3 py-3 flex-1 mr-2 border border-white/20"
+              style={{ opacity: isChatLoading ? 0.5 : 1 }}
+            >
+              <Text className="text-white text-xs font-bold text-center">💪 Motivate</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => handleChatQuickAction('advice')}
+              disabled={isChatLoading}
+              className="bg-white/25 rounded-xl px-3 py-3 flex-1 mx-1 border border-white/20"
+              style={{ opacity: isChatLoading ? 0.5 : 1 }}
+            >
+              <Text className="text-white text-xs font-bold text-center">💡 Advice</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => handleChatQuickAction('suggestion')}
+              disabled={isChatLoading}
+              className="bg-white/25 rounded-xl px-3 py-3 flex-1 ml-2 border border-white/20"
+              style={{ opacity: isChatLoading ? 0.5 : 1 }}
+            >
+              <Text className="text-white text-xs font-bold text-center">🏃‍♂️ Suggest</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Chat Input */}
+          <View className="flex-row items-center">
+            <TextInput
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask Coach Alex anything..."
+              placeholderTextColor="rgba(255,255,255,0.7)"
+              className="flex-1 bg-white/25 rounded-xl px-4 py-3 text-white mr-3 border border-white/20"
+              style={{ fontSize: 16, fontWeight: '500' }}
+              multiline
+              maxLength={500}
+              editable={!isChatLoading}
+              onSubmitEditing={sendChatMessage}
+              returnKeyType="send"
+            />
+            <TouchableOpacity
+              onPress={sendChatMessage}
+              disabled={!inputText.trim() || isChatLoading}
+              className="w-12 h-12 rounded-full items-center justify-center border border-white/20"
+              style={{ 
+                backgroundColor: inputText.trim() ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)',
+                opacity: isChatLoading ? 0.5 : 1 
               }}
             >
-              <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+              {isChatLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="send" size={20} color="#FFFFFF" />
+              )}
             </TouchableOpacity>
           </View>
-          
-          {isGeneratingMessage ? (
-            <View className="flex-row items-center">
-              <ActivityIndicator size="small" color="white" />
-              <Text className="text-white/80 ml-2">Alex is thinking...</Text>
-            </View>
-          ) : (
-            <Text className="text-white text-base leading-6">{coachMessage}</Text>
-          )}
         </GradientCard>
 
-        {/* 📞 VOICE CALL WITH COACH ALEX - Natural Conversation */}
-        <CoachCallButton 
-          workoutContext={healthContext}
-          style={{ marginBottom: 24 }}
-        />
-
-        {/* Quick Actions */}
-        <View className="mb-8">
-          <Text className="text-white text-xl font-bold mb-4">Quick Actions</Text>
-          
-          <View className="flex-row justify-between">
-            <TouchableOpacity
-              onPress={() => handleQuickAction('motivation')}
-              disabled={isGeneratingMessage}
-              className="bg-purple-600 rounded-lg px-4 py-3 flex-1 mr-2"
-            >
-              <Text className="text-center text-white font-semibold">💪 Motivate Me</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={() => handleQuickAction('suggestion')}
-              disabled={isGeneratingMessage}
-              className="bg-green-600 rounded-lg px-4 py-3 flex-1 mx-1"
-            >
-              <Text className="text-center text-white font-semibold">💡 Get Tips</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={() => handleQuickAction('workout')}
-              disabled={isGeneratingMessage}
-              className="bg-pink-600 rounded-lg px-4 py-3 flex-1 ml-2"
-            >
-              <Text className="text-center text-white font-semibold">🏃‍♂️ Workout</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Health Status Indicators */}
         {healthContext && (
@@ -462,7 +677,8 @@ export default function CoachScreen() {
             <Text className="text-gray-500 text-xs">Using Mock Data: {isLoading ? 'Loading...' : 'Yes'}</Text>
           </View>
         )}
-      </ScrollView>
-    </LinearGradient>
+        </ScrollView>
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }

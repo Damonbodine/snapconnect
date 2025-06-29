@@ -347,6 +347,10 @@ Create a workout that is engaging, safe, and effective for building ${category.p
    */
   private parseWorkoutResponse(response: string, request: WorkoutGenerationRequest): GeneratedWorkout {
     console.log('🔍 Parsing GROQ workout response...');
+    console.log('📝 Raw response from GROQ:');
+    console.log('=====================================');
+    console.log(response);
+    console.log('=====================================');
     
     const lines = response.split('\n').map(line => line.trim());
     const workout: Partial<GeneratedWorkout> = {
@@ -364,63 +368,85 @@ Create a workout that is engaging, safe, and effective for building ${category.p
     for (const line of lines) {
       if (!line) continue;
       
+      console.log(`🔍 Processing line: "${line}"`);
+      
       // Parse header fields
       if (line.startsWith('TITLE:')) {
         workout.title = line.replace('TITLE:', '').trim();
+        console.log(`  ✅ Found title: ${workout.title}`);
       } else if (line.startsWith('DESCRIPTION:')) {
         workout.description = line.replace('DESCRIPTION:', '').trim();
+        console.log(`  ✅ Found description: ${workout.description}`);
       } else if (line.startsWith('DURATION:')) {
         const duration = line.replace('DURATION:', '').trim();
         workout.duration = parseInt(duration) || request.availableTime;
+        console.log(`  ✅ Found duration: ${workout.duration}`);
       } else if (line.startsWith('INTENSITY:')) {
         const intensity = line.replace('INTENSITY:', '').trim().toLowerCase();
         workout.intensity = ['low', 'moderate', 'high'].includes(intensity) 
           ? intensity as any 
           : request.category.intensity;
+        console.log(`  ✅ Found intensity: ${workout.intensity}`);
       } else if (line.startsWith('TARGET:')) {
         workout.targetAudience = line.replace('TARGET:', '').trim();
+        console.log(`  ✅ Found target: ${workout.targetAudience}`);
       }
       
       // Parse sections
       else if (line.startsWith('WARM_UP:')) {
         currentSection = 'warmUp';
+        console.log('  🔥 Entering WARM_UP section');
       } else if (line.startsWith('MAIN_WORKOUT:')) {
         currentSection = 'mainWorkout';
+        console.log('  💪 Entering MAIN_WORKOUT section');
       } else if (line.startsWith('COOL_DOWN:')) {
         currentSection = 'coolDown';
+        console.log('  🧘 Entering COOL_DOWN section');
       } else if (line.startsWith('TIPS:')) {
         currentSection = 'tips';
+        console.log('  💡 Entering TIPS section');
       } else if (line.startsWith('MODIFICATIONS:')) {
         currentSection = 'modifications';
+        console.log('  🔧 Entering MODIFICATIONS section');
       } else if (line.startsWith('BENEFITS:')) {
         currentSection = 'benefits';
+        console.log('  🎯 Entering BENEFITS section');
       }
       
       // Parse section content
       else if (line.startsWith('- ')) {
         const content = line.replace('- ', '');
+        console.log(`  ➡️ Found content in ${currentSection}: ${content}`);
         
         if (currentSection === 'tips') {
           workout.tips!.push(content);
+          console.log(`    ✅ Added tip (total: ${workout.tips!.length})`);
         } else if (currentSection === 'modifications') {
           workout.modifications!.push(content);
+          console.log(`    ✅ Added modification (total: ${workout.modifications!.length})`);
         } else if (currentSection === 'benefits') {
           workout.expectedBenefits!.push(content);
+          console.log(`    ✅ Added benefit (total: ${workout.expectedBenefits!.length})`);
         } else if (['warmUp', 'mainWorkout', 'coolDown'].includes(currentSection)) {
           const exercise = this.parseExerciseLine(content, currentSection === 'mainWorkout');
+          console.log(`    🏋️ Parsed exercise:`, exercise);
+          
           if (currentSection === 'warmUp') {
             workout.warmUp!.push(exercise);
+            console.log(`    ✅ Added warm-up exercise (total: ${workout.warmUp!.length})`);
           } else if (currentSection === 'mainWorkout') {
             workout.mainWorkout!.push(exercise);
+            console.log(`    ✅ Added main workout exercise (total: ${workout.mainWorkout!.length})`);
           } else if (currentSection === 'coolDown') {
             workout.coolDown!.push(exercise);
+            console.log(`    ✅ Added cool-down exercise (total: ${workout.coolDown!.length})`);
           }
         }
       }
     }
 
     // Provide fallbacks for missing data
-    return {
+    const finalWorkout = {
       title: workout.title || `${request.category.name} Workout`,
       description: workout.description || request.category.description,
       category: workout.category!,
@@ -438,6 +464,132 @@ Create a workout that is engaging, safe, and effective for building ${category.p
         llmModel: 'llama3-70b-8192',
         category: request.category.id,
       },
+    };
+
+    console.log('📊 Final parsed workout structure:');
+    console.log('=====================================');
+    console.log('Title:', finalWorkout.title);
+    console.log('Description:', finalWorkout.description);
+    console.log('Duration:', finalWorkout.duration);
+    console.log('Intensity:', finalWorkout.intensity);
+    console.log('Target Audience:', finalWorkout.targetAudience);
+    console.log('Warm-up exercises:', finalWorkout.warmUp.length);
+    console.log('Main workout exercises:', finalWorkout.mainWorkout.length);
+    console.log('Cool-down exercises:', finalWorkout.coolDown.length);
+    console.log('Tips:', finalWorkout.tips.length);
+    console.log('Modifications:', finalWorkout.modifications.length);
+    console.log('Benefits:', finalWorkout.expectedBenefits.length);
+    console.log('=====================================');
+
+    // If no exercises were parsed, provide fallback exercises
+    if (finalWorkout.mainWorkout.length === 0) {
+      console.log('⚠️ No main workout exercises found, providing fallback workout');
+      const fallbackWorkout = this.generateFallbackWorkout(request);
+      return {
+        ...finalWorkout,
+        warmUp: fallbackWorkout.warmUp,
+        mainWorkout: fallbackWorkout.mainWorkout,
+        coolDown: fallbackWorkout.coolDown,
+        tips: fallbackWorkout.tips,
+        modifications: fallbackWorkout.modifications,
+        expectedBenefits: fallbackWorkout.expectedBenefits,
+      };
+    }
+
+    return finalWorkout;
+  }
+
+  /**
+   * Generate fallback workout when AI parsing fails
+   */
+  private generateFallbackWorkout(request: WorkoutGenerationRequest): Partial<GeneratedWorkout> {
+    const { category } = request;
+    
+    // Create category-specific fallback workouts
+    const fallbackWorkouts = {
+      'upper_body_strength': {
+        warmUp: [
+          { name: 'Arm Circles', description: 'Circle your arms forward and backward', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Shoulder Rolls', description: 'Roll shoulders forward and backward', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Arm Swings', description: 'Swing arms across your body', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+        ],
+        mainWorkout: [
+          { name: 'Push-ups', description: 'Standard push-ups targeting chest, shoulders, and triceps', sets: '3 sets of 8-12 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['chest', 'shoulders', 'triceps'], equipment: [] },
+          { name: 'Pike Push-ups', description: 'Push-ups in pike position for shoulder emphasis', sets: '3 sets of 6-10 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['shoulders', 'triceps'], equipment: [] },
+          { name: 'Tricep Dips', description: 'Dips using a chair or elevated surface', sets: '3 sets of 8-12 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['triceps', 'shoulders'], equipment: ['chair'] },
+          { name: 'Plank to Push-up', description: 'Transition from plank to push-up position', sets: '3 sets of 6-8 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['chest', 'shoulders', 'core'], equipment: [] },
+          { name: 'Diamond Push-ups', description: 'Push-ups with hands in diamond formation', sets: '2 sets of 5-8 reps', restTime: '60 seconds', difficulty: 'advanced' as const, targetMuscles: ['triceps', 'chest'], equipment: [] },
+        ],
+        coolDown: [
+          { name: 'Chest Stretch', description: 'Stretch chest muscles against a wall', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Shoulder Stretch', description: 'Cross-body shoulder stretch', duration: '30 seconds each arm', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Tricep Stretch', description: 'Overhead tricep stretch', duration: '30 seconds each arm', difficulty: 'beginner' as const, equipment: [] },
+        ],
+      },
+      'lower_body_power': {
+        warmUp: [
+          { name: 'Leg Swings', description: 'Swing legs forward and backward', duration: '30 seconds each leg', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Hip Circles', description: 'Circle hips clockwise and counterclockwise', duration: '30 seconds each direction', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Bodyweight Squats', description: 'Light squats to warm up', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+        ],
+        mainWorkout: [
+          { name: 'Jump Squats', description: 'Explosive squat jumps', sets: '4 sets of 8-12 reps', restTime: '90 seconds', difficulty: 'intermediate' as const, targetMuscles: ['quadriceps', 'glutes', 'calves'], equipment: [] },
+          { name: 'Lunge Jumps', description: 'Alternating jump lunges', sets: '4 sets of 10-16 reps', restTime: '90 seconds', difficulty: 'intermediate' as const, targetMuscles: ['quadriceps', 'glutes', 'hamstrings'], equipment: [] },
+          { name: 'Single-Leg Squats', description: 'Pistol squats or assisted single-leg squats', sets: '3 sets of 5-8 reps each leg', restTime: '90 seconds', difficulty: 'advanced' as const, targetMuscles: ['quadriceps', 'glutes'], equipment: [] },
+          { name: 'Broad Jumps', description: 'Jump forward for distance', sets: '3 sets of 5-8 jumps', restTime: '90 seconds', difficulty: 'intermediate' as const, targetMuscles: ['quadriceps', 'glutes'], equipment: [] },
+          { name: 'Calf Raises', description: 'Single or double leg calf raises', sets: '3 sets of 15-20 reps', restTime: '60 seconds', difficulty: 'beginner' as const, targetMuscles: ['calves'], equipment: [] },
+        ],
+        coolDown: [
+          { name: 'Quad Stretch', description: 'Standing quad stretch', duration: '30 seconds each leg', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Hamstring Stretch', description: 'Seated or standing hamstring stretch', duration: '30 seconds each leg', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Calf Stretch', description: 'Wall calf stretch', duration: '30 seconds each leg', difficulty: 'beginner' as const, equipment: [] },
+        ],
+      },
+      'default': {
+        warmUp: [
+          { name: 'Jumping Jacks', description: 'Classic cardio warm-up', duration: '60 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Arm Circles', description: 'Circle your arms to warm up shoulders', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Bodyweight Squats', description: 'Light squats to warm up', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+        ],
+        mainWorkout: [
+          { name: 'Push-ups', description: 'Standard push-ups', sets: '3 sets of 8-12 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['chest', 'shoulders', 'triceps'], equipment: [] },
+          { name: 'Squats', description: 'Bodyweight squats', sets: '3 sets of 12-15 reps', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['quadriceps', 'glutes'], equipment: [] },
+          { name: 'Plank', description: 'Hold plank position', sets: '3 sets of 30-60 seconds', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['core'], equipment: [] },
+          { name: 'Lunges', description: 'Alternating forward lunges', sets: '3 sets of 10-12 reps each leg', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['quadriceps', 'glutes', 'hamstrings'], equipment: [] },
+          { name: 'Mountain Climbers', description: 'High-intensity cardio exercise', sets: '3 sets of 30 seconds', restTime: '60 seconds', difficulty: 'intermediate' as const, targetMuscles: ['core', 'cardio'], equipment: [] },
+        ],
+        coolDown: [
+          { name: 'Forward Fold', description: 'Stretch hamstrings and back', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Chest Stretch', description: 'Stretch chest muscles', duration: '30 seconds', difficulty: 'beginner' as const, equipment: [] },
+          { name: 'Quad Stretch', description: 'Standing quad stretch', duration: '30 seconds each leg', difficulty: 'beginner' as const, equipment: [] },
+        ],
+      },
+    };
+
+    const workoutType = (fallbackWorkouts as any)[category.id] || fallbackWorkouts.default;
+    
+    return {
+      warmUp: workoutType.warmUp,
+      mainWorkout: workoutType.mainWorkout,
+      coolDown: workoutType.coolDown,
+      tips: [
+        'Focus on proper form over speed',
+        'Rest between sets as needed',
+        'Stay hydrated throughout the workout',
+        'Listen to your body and modify as needed',
+      ],
+      modifications: [
+        'Beginner: Reduce reps or sets as needed',
+        'Advanced: Increase reps, sets, or add weight',
+        'Injuries: Skip exercises that cause pain',
+        'Limited space: All exercises can be done in a small area',
+      ],
+      expectedBenefits: [
+        'Improved strength and muscle tone',
+        'Better functional movement patterns',
+        'Increased cardiovascular fitness',
+        'Enhanced mental well-being',
+      ],
     };
   }
 

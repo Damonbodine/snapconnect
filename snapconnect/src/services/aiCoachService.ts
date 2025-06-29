@@ -176,27 +176,162 @@ export class AICoachService {
   }
 
   /**
-   * Handle user message and generate contextual response
+   * Handle user message and generate contextual response with memory
    */
   async handleUserMessage(
     userMessage: string,
     healthContext: HealthContext
   ): Promise<string> {
     try {
-      console.log('💬 Handling user message with health context');
+      console.log('💬 Handling user message with full context and memory');
 
-      // Determine message type based on content
-      const messageType = this.classifyUserMessage(userMessage);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Get enhanced coaching context including user profile
+      const enhancedContext = await healthContextService.generateCoachingContext(user.id);
+      
+      // Get recent conversation history (last 8 messages for context)
+      const { data: recentMessages } = await supabase
+        .from('ai_coaching_messages')
+        .select('message_text, message_type, user_response, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(8);
+
+      // Get user profile with name
+      const { data: userProfile } = await supabase
+        .from('users')
+        .select('full_name, username, fitness_level, goals, coaching_style')
+        .eq('id', user.id)
+        .single();
+
+      // Get RSVP and event data for context
+      const { data: rsvpStats } = await supabase.rpc('get_user_rsvp_stats', {
+        target_user_id: user.id
+      });
+
+      // Get recent workout activity
+      const { data: recentWorkouts } = await supabase
+        .from('workout_notes')
+        .select('workout_type, note, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Get upcoming events user has RSVP'd to
+      const { data: upcomingEvents } = await supabase
+        .from('event_participants')
+        .select(`
+          events!inner (
+            title, start_time, location_name,
+            event_categories (name)
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'going')
+        .gte('events.start_time', new Date().toISOString())
+        .order('events.start_time', { ascending: true })
+        .limit(3);
+
+      const userName = userProfile?.full_name || userProfile?.username || 'there';
+
+      // Build conversation context for AI
+      const conversationHistory = recentMessages?.reverse().map(msg => 
+        `[${new Date(msg.created_at).toLocaleTimeString()}] ${msg.message_type}: ${msg.message_text}`
+      ).join('\n') || '';
+
+      // Enhanced prompt with user context and memory
+      const enhancedPrompt = `You are Coach Alex, a personal fitness AI coach. 
+
+USER PROFILE:
+- Name: ${userName}
+- Fitness Level: ${userProfile?.fitness_level || 'beginner'}
+- Goals: ${userProfile?.goals ? JSON.stringify(userProfile.goals) : 'general fitness'}
+- Coaching Style Preference: ${userProfile?.coaching_style || 'motivational'}
+
+CONVERSATION HISTORY:
+${conversationHistory}
+
+USER'S CURRENT MESSAGE: "${userMessage}"
+
+HEALTH CONTEXT:
+- Today's Steps: ${healthContext.todaysSteps}
+- Current Streak: ${healthContext.currentStreak} days
+- Energy Level: ${healthContext.energyLevel}
+- Activity Level: ${healthContext.activityLevel}
+
+EVENT & RSVP ACTIVITY:
+- Total Events RSVP'd: ${rsvpStats?.total_events_rsvp || 0}
+- Events Created: ${rsvpStats?.total_events_created || 0}
+- Events Attended: ${rsvpStats?.total_events_attended || 0}
+- Activity Streak: ${rsvpStats?.current_streak || 0} days
+- Attendance Rate: ${rsvpStats?.attendance_rate ? Math.round(parseFloat(rsvpStats.attendance_rate)) : 0}%
+- Favorite Categories: ${rsvpStats?.favorite_categories ? rsvpStats.favorite_categories.map(cat => cat.category).join(', ') : 'None yet'}
+- Upcoming Events: ${rsvpStats?.upcoming_events_count || 0}
+
+UPCOMING EVENTS:
+${upcomingEvents?.map(ep => `- ${ep.events.title} (${ep.events.event_categories?.name}) on ${new Date(ep.events.start_time).toLocaleDateString()}`).join('\n') || 'No upcoming events'}
+
+RECENT WORKOUTS:
+${recentWorkouts?.map(w => `- ${w.workout_type}: ${w.note} (${new Date(w.created_at).toLocaleDateString()})`).join('\n') || 'No recent workouts logged'}
+
+Respond as Coach Alex. Use the user's name naturally. Reference their event RSVPs, workout history, and upcoming commitments when relevant. Be encouraging about their fitness activities and help them stay accountable to their events and goals.`;
 
       const request: HealthCoachingRequest = {
         healthContext,
-        messageType,
+        messageType: 'conversation',
         userMessage,
         maxTokens: 200,
         temperature: 0.8,
+        additionalContext: enhancedPrompt,
       };
 
-      return await healthAIService.generateHealthCoachingMessage(request);
+      const response = await healthAIService.generateHealthCoachingMessage(request);
+
+      // Store the conversation in database for memory
+      await supabase
+        .from('ai_coaching_messages')
+        .insert({
+          user_id: user.id,
+          message_text: response,
+          message_type: 'conversation',
+          health_context: {
+            userMessage,
+            todaysSteps: healthContext.todaysSteps,
+            currentStreak: healthContext.currentStreak,
+            energyLevel: healthContext.energyLevel,
+            activityLevel: healthContext.activityLevel,
+            userName,
+            fitnessLevel: userProfile?.fitness_level,
+            goals: userProfile?.goals,
+            rsvpStats: {
+              totalEventsRsvp: rsvpStats?.total_events_rsvp || 0,
+              eventsCreated: rsvpStats?.total_events_created || 0,
+              eventsAttended: rsvpStats?.total_events_attended || 0,
+              activityStreak: rsvpStats?.current_streak || 0,
+              attendanceRate: rsvpStats?.attendance_rate || 0,
+              favoriteCategories: rsvpStats?.favorite_categories || [],
+              upcomingEventsCount: rsvpStats?.upcoming_events_count || 0
+            },
+            upcomingEvents: upcomingEvents?.map(ep => ({
+              title: ep.events.title,
+              category: ep.events.event_categories?.name,
+              startTime: ep.events.start_time
+            })) || [],
+            recentWorkouts: recentWorkouts?.map(w => ({
+              type: w.workout_type,
+              note: w.note,
+              date: w.created_at
+            })) || []
+          },
+          created_at: new Date().toISOString()
+        });
+
+      console.log(`✅ Stored conversation for ${userName}: "${userMessage}" -> "${response.substring(0, 50)}..."`);
+
+      return response;
     } catch (error) {
       console.error('❌ Failed to handle user message:', error);
       return "I understand you're reaching out! I'm here to help with your fitness journey. Can you tell me more about what you'd like to know or how you're feeling today?";

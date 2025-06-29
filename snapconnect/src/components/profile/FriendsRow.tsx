@@ -16,6 +16,10 @@ export const FriendsRow: React.FC<FriendsRowProps> = ({ friends, friendsCount })
     router.push('/friends');
   };
 
+  const handleFriendPress = (friendId: string) => {
+    router.push(`/user/${friendId}`);
+  };
+
   return (
     <View className="mb-6">
       {/* Friends count header */}
@@ -38,7 +42,11 @@ export const FriendsRow: React.FC<FriendsRowProps> = ({ friends, friendsCount })
         contentContainerStyle={{ paddingHorizontal: 4 }}
       >
         {displayFriends.map((friend, index) => (
-          <View key={friend.id} className="mr-4 items-center">
+          <Pressable 
+            key={friend.id} 
+            onPress={() => handleFriendPress(friend.id)}
+            className="mr-4 items-center"
+          >
             {/* Friend avatar with gradient border */}
             <View className="relative">
               <LinearGradient
@@ -69,7 +77,7 @@ export const FriendsRow: React.FC<FriendsRowProps> = ({ friends, friendsCount })
             <Text className="text-white text-xs font-medium mt-2 text-center max-w-[80px]" numberOfLines={1}>
               {friend.full_name || friend.username}
             </Text>
-          </View>
+          </Pressable>
         ))}
         
         {/* View all button at the end if there are more friends */}

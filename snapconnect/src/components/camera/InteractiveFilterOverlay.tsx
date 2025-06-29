@@ -11,6 +11,7 @@ import {
   PanGestureHandler,
   PinchGestureHandler,
   RotationGestureHandler,
+  TapGestureHandler,
   State,
 } from 'react-native-gesture-handler';
 import { FaceDetectionResult, FilterAsset } from '../../types/media';
@@ -30,6 +31,7 @@ interface InteractiveFilterOverlayProps {
   isVisible: boolean;
   transform: FilterTransform;
   onTransformChange: (transform: FilterTransform) => void;
+  onEditText?: () => void;
   cameraAspectRatio?: number;
 }
 
@@ -39,6 +41,7 @@ export const InteractiveFilterOverlay: React.FC<InteractiveFilterOverlayProps> =
   isVisible,
   transform,
   onTransformChange,
+  onEditText,
   cameraAspectRatio = 16 / 9,
 }) => {
   // Animated values for gestures
@@ -128,6 +131,15 @@ export const InteractiveFilterOverlay: React.FC<InteractiveFilterOverlayProps> =
     },
   });
 
+  // Double-tap to edit text
+  const doubleTapGestureHandler = useAnimatedGestureHandler({
+    onEnd: () => {
+      if (activeFilter.type === 'text' && onEditText) {
+        runOnJS(onEditText)();
+      }
+    },
+  });
+
   // Animated style
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -179,28 +191,51 @@ export const InteractiveFilterOverlay: React.FC<InteractiveFilterOverlayProps> =
       {/* Instructions */}
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Drag to move • Pinch to resize (unlimited) • Two fingers to rotate
+          Drag to move • Pinch to resize • Two fingers to rotate{activeFilter.type === 'text' ? ' • Double-tap to edit' : ''}
         </Text>
       </View>
 
       {/* Interactive filter element */}
       <View style={styles.filterContainer}>
-        <PanGestureHandler onGestureEvent={panGestureHandler}>
+        <TapGestureHandler 
+          onGestureEvent={doubleTapGestureHandler}
+          numberOfTaps={2}
+          shouldCancelWhenOutside={false}
+        >
           <Animated.View>
-            <PinchGestureHandler onGestureEvent={pinchGestureHandler}>
+            <PanGestureHandler onGestureEvent={panGestureHandler}>
               <Animated.View>
-                <RotationGestureHandler onGestureEvent={rotationGestureHandler}>
-                  <Animated.View style={[styles.filterElement, animatedStyle]}>
-                    {/* No border - just the emoji */}
-                    <Text style={[styles.filterEmoji, { fontSize: 60 * transform.scale }]}>
-                      {activeFilter.asset}
-                    </Text>
+                <PinchGestureHandler onGestureEvent={pinchGestureHandler}>
+                  <Animated.View>
+                    <RotationGestureHandler onGestureEvent={rotationGestureHandler}>
+                      <Animated.View style={[styles.filterElement, animatedStyle]}>
+                        {activeFilter.type === 'emoji' ? (
+                          <Text style={[styles.filterEmoji, { fontSize: 60 * transform.scale }]}>
+                            {activeFilter.asset}
+                          </Text>
+                        ) : activeFilter.type === 'text' ? (
+                          <View style={styles.textContainer}>
+                            <Text style={[
+                              styles.filterText, 
+                              { 
+                                fontSize: (activeFilter.fontSize || 24) * transform.scale,
+                                color: activeFilter.textColor || '#FFFFFF',
+                                fontWeight: activeFilter.fontWeight || 'normal',
+                                fontStyle: activeFilter.fontStyle || 'normal',
+                              }
+                            ]}>
+                              {activeFilter.customText || 'Add Text'}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </Animated.View>
+                    </RotationGestureHandler>
                   </Animated.View>
-                </RotationGestureHandler>
+                </PinchGestureHandler>
               </Animated.View>
-            </PinchGestureHandler>
+            </PanGestureHandler>
           </Animated.View>
-        </PanGestureHandler>
+        </TapGestureHandler>
       </View>
     </View>
   );
@@ -248,5 +283,21 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
+  },
+  textContainer: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  filterText: {
+    fontSize: 24, // Base size for text
+    textAlign: 'center',
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
 });

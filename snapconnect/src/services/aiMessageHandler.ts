@@ -14,6 +14,7 @@ class AIMessageHandler {
   private subscription: any = null;
   private pollingInterval: NodeJS.Timeout | null = null;
   private lastCheckedAt: Date = new Date();
+  private processedMessageIds = new Set<string>(); // Track processed messages to prevent duplicates
 
   public static getInstance(): AIMessageHandler {
     if (!AIMessageHandler.instance) {
@@ -35,39 +36,10 @@ class AIMessageHandler {
     try {
       console.log('🤖 Initializing AI Message Handler...');
 
-      // Try real-time subscriptions first, fallback to polling if not available
-      try {
-        this.subscription = supabase
-          .channel('ai_message_handler')
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'messages',
-            },
-            async (payload) => {
-              console.log('🔥 AI Handler received message event (real-time):', payload);
-              const message = payload.new as Message;
-              await this.handleNewMessage(message);
-            }
-          )
-          .subscribe((status) => {
-            console.log('🔥 AI Handler subscription status:', status);
-            if (status === 'SUBSCRIBED') {
-              console.log('✅ Real-time subscriptions working!');
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-              console.log('⚠️  Real-time not available, starting polling fallback...');
-              this.startPollingFallback();
-            }
-          });
-
-        // Also start polling as a backup (will be more reliable)
-        this.startPollingFallback();
-      } catch (error) {
-        console.log('⚠️  Real-time subscriptions failed, using polling only:', error);
-        this.startPollingFallback();
-      }
+      // Disable real-time subscriptions to avoid duplicate processing with Messages Store
+      // Use polling only for AI message handling
+      console.log('🔥 Using polling-only mode to avoid duplicate message processing');
+      this.startPollingFallback();
 
       this.isInitialized = true;
       console.log('✅ AI Message Handler initialized and listening for messages');
@@ -83,6 +55,12 @@ class AIMessageHandler {
    */
   private async handleNewMessage(message: Message): Promise<void> {
     try {
+      // Check for duplicate processing
+      if (this.processedMessageIds.has(message.id)) {
+        console.log(`⏭️  Skipping already processed message: ${message.id}`);
+        return;
+      }
+
       // Skip if no content or self-message
       if (!message.content || message.sender_id === message.receiver_id) {
         return;
@@ -95,6 +73,9 @@ class AIMessageHandler {
 
       console.log(`📨 New message detected: ${message.sender_id} → ${message.receiver_id}`);
       console.log(`   Content: "${message.content.substring(0, 50)}..."`);
+
+      // Mark message as processed
+      this.processedMessageIds.add(message.id);
 
       // Check if receiver is an AI user
       const receiverIsAI = await this.isAIUser(message.receiver_id);
@@ -224,6 +205,14 @@ class AIMessageHandler {
     this.pollingInterval = setInterval(async () => {
       try {
         await this.checkForNewMessages();
+        
+        // Clean up old processed message IDs (keep only last 1000)
+        if (this.processedMessageIds.size > 1000) {
+          const messageIdsArray = Array.from(this.processedMessageIds);
+          this.processedMessageIds.clear();
+          // Keep the most recent 500
+          messageIdsArray.slice(-500).forEach(id => this.processedMessageIds.add(id));
+        }
       } catch (error) {
         console.error('❌ Polling check failed:', error);
       }
