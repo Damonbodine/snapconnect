@@ -298,6 +298,13 @@ export const CliqueScreen = () => {
           </GlassCard>
         </View>
         </ScrollView>
+        
+        {/* Add Workout Note Modal */}
+        <AddWorkoutNoteModal
+          visible={showAddNoteModal}
+          onClose={() => setShowAddNoteModal(false)}
+          onNoteAdded={handleNoteAdded}
+        />
       </SafeAreaView>
     </LinearGradient>
   );

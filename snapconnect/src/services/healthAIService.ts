@@ -51,7 +51,7 @@ export class HealthAIService {
       const userPrompt = this.buildHealthCoachingPrompt(request);
       
       const completion = await getHealthOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -62,7 +62,7 @@ export class HealthAIService {
             content: userPrompt,
           },
         ],
-        max_tokens: request.maxTokens || 200,
+        max_tokens: request.maxTokens || 100,
         temperature: request.temperature || 0.8,
       });
 
@@ -88,7 +88,7 @@ export class HealthAIService {
       const prompt = this.buildWorkoutSuggestionPrompt(healthContext);
       
       const completion = await getHealthOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -99,7 +99,7 @@ export class HealthAIService {
             content: prompt,
           },
         ],
-        max_tokens: 300,
+        max_tokens: 150,
         temperature: 0.7,
       });
 
@@ -135,8 +135,8 @@ ${achievement.streak ? `Streak: ${achievement.streak} days` : ''}
 User's current fitness context:
 - Current step streak: ${healthContext.currentStreak} days
 - Today's steps: ${healthContext.todaysSteps}
-- Fitness level: ${healthContext.fitnessLevel}
-- Energy level: ${healthContext.energyLevel}
+- Fitness level: ${healthContext.fitnessLevel || 'intermediate'}
+- Energy level: ${healthContext.energyLevel || 5}
 
 Create a celebratory message that:
 1. Acknowledges the specific achievement
@@ -148,7 +148,7 @@ Create a celebratory message that:
 Use emojis sparingly and make it feel personal and genuine.`;
 
       const completion = await getHealthOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -209,19 +209,19 @@ Always consider the user's current state and provide advice that's appropriate f
     const { healthContext, messageType, userMessage, additionalContext } = request;
     
     const baseContext = `Current Health Data:
-- Today's steps: ${healthContext.todaysSteps} (${healthContext.stepGoalProgress}% of goal)
+- Today's steps: ${healthContext.todaysSteps || 'Unknown'} (${healthContext.stepGoalProgress || 0}% of goal)
 - Current streak: ${healthContext.currentStreak} days (best: ${healthContext.bestStreak})
 - Sleep: ${healthContext.averageSleepHours} hours (quality: ${healthContext.sleepQuality}/10)
-- Energy level: ${healthContext.energyLevel}
-- Activity level: ${healthContext.activityLevel}
+- Energy level: ${healthContext.energyLevel || 5}
+- Activity level: ${healthContext.activityLevel || 'moderate'}
 - Recovery score: ${healthContext.recoveryScore}/10
 - Days since rest: ${healthContext.daysSinceRest}
-- Recent workouts: ${healthContext.recentWorkouts.map(w => w.type).join(', ') || 'None'}
+- Recent workouts: ${healthContext.recentWorkouts?.map(w => w.type).join(', ') || 'None'}
 
 User Profile:
-- Fitness level: ${healthContext.fitnessLevel}
-- Primary goal: ${healthContext.userGoals.primary}
-- Preferred workouts: ${healthContext.preferredWorkoutTypes.join(', ')}
+- Fitness level: ${healthContext.fitnessLevel || 'intermediate'}
+- Primary goal: ${healthContext.userGoals?.primary || healthContext.profile?.goals?.[0] || 'general fitness'}
+- Preferred workouts: ${healthContext.preferredWorkoutTypes?.join(', ') || 'Not specified'}
 - Available time: ${healthContext.availableTime} minutes`;
 
     // Add enhanced context from Phase 1 implementation
@@ -296,19 +296,19 @@ Recovery Indicators:
 - Last workout intensity: ${healthContext.lastWorkoutIntensity}
 
 Current State:
-- Energy level: ${healthContext.energyLevel}
-- Activity level: ${healthContext.activityLevel}
+- Energy level: ${healthContext.energyLevel || 5}
+- Activity level: ${healthContext.activityLevel || 'moderate'}
 - Today's steps: ${healthContext.todaysSteps}
 - Step goal progress: ${healthContext.stepGoalProgress}%
 
 User Profile:
-- Fitness level: ${healthContext.fitnessLevel}
-- Primary goal: ${healthContext.userGoals.primary}
-- Preferred workouts: ${healthContext.preferredWorkoutTypes.join(', ')}
+- Fitness level: ${healthContext.fitnessLevel || 'intermediate'}
+- Primary goal: ${healthContext.userGoals?.primary || healthContext.profile?.goals?.[0] || 'general fitness'}
+- Preferred workouts: ${healthContext.preferredWorkoutTypes?.join(', ') || 'Not specified'}
 - Available time: ${healthContext.availableTime} minutes
 
 Recent Activity:
-- Recent workouts: ${healthContext.recentWorkouts.slice(0, 3).map(w => 
+- Recent workouts: ${healthContext.recentWorkouts?.slice(0, 3).map(w => 
     `${w.type} (${w.duration}min, ${w.intensity || 'unknown'} intensity)`
   ).join(', ') || 'None this week'}
 

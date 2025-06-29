@@ -89,7 +89,7 @@ export class OpenAIService {
       const systemPrompt = this.buildSystemPrompt(request.personality, request.archetype, request.contentType);
       
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -100,7 +100,7 @@ export class OpenAIService {
             content: request.prompt,
           },
         ],
-        max_tokens: request.maxTokens || 150,
+        max_tokens: request.maxTokens || 100,
         temperature: request.temperature || 0.8,
       });
 
@@ -228,7 +228,7 @@ export class OpenAIService {
       const prompt = this.buildWalkSuggestionPrompt(request);
       
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -239,7 +239,7 @@ export class OpenAIService {
             content: prompt,
           },
         ],
-        max_tokens: 300,
+        max_tokens: 150,
         temperature: 0.8,
       });
 
@@ -281,7 +281,7 @@ export class OpenAIService {
       Write in an encouraging, friendly tone that makes them excited to start walking.`;
 
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -292,7 +292,7 @@ export class OpenAIService {
             content: prompt,
           },
         ],
-        max_tokens: 200,
+        max_tokens: 100,
         temperature: 0.9,
       });
 
@@ -331,7 +331,7 @@ export class OpenAIService {
       Keep it conversational and under 150 words.`;
 
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -342,7 +342,7 @@ export class OpenAIService {
             content: prompt,
           },
         ],
-        max_tokens: 150,
+        max_tokens: 100,
         temperature: 0.8,
       });
 
@@ -720,7 +720,7 @@ Make sure the caption aligns perfectly with what's actually shown in the image. 
       const userPrompt = this.buildHealthCoachingPrompt(request);
       
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -731,7 +731,7 @@ Make sure the caption aligns perfectly with what's actually shown in the image. 
             content: userPrompt,
           },
         ],
-        max_tokens: request.maxTokens || 200,
+        max_tokens: request.maxTokens || 100,
         temperature: request.temperature || 0.8,
       });
 
@@ -757,7 +757,7 @@ Make sure the caption aligns perfectly with what's actually shown in the image. 
       const prompt = this.buildWorkoutSuggestionPrompt(healthContext);
       
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -768,7 +768,7 @@ Make sure the caption aligns perfectly with what's actually shown in the image. 
             content: prompt,
           },
         ],
-        max_tokens: 300,
+        max_tokens: 150,
         temperature: 0.7,
       });
 
@@ -817,7 +817,7 @@ Create a celebratory message that:
 Use emojis sparingly and make it feel personal and genuine.`;
 
       const completion = await getOpenAIClient().chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -828,7 +828,7 @@ Use emojis sparingly and make it feel personal and genuine.`;
             content: prompt,
           },
         ],
-        max_tokens: 150,
+        max_tokens: 100,
         temperature: 0.9,
       });
 

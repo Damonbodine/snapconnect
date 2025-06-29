@@ -1,0 +1,21 @@
+# Pypecat AI Voice Pipeline Dependencies
+pipecat-ai[websocket]
+deepgram-sdk
+openai
+elevenlabs
+
+# Core Dependencies
+python-dotenv
+supabase
+aiohttp
+pydantic
+websockets
+
+# Audio Processing (pyaudio requires system dependencies)
+# pyaudio
+numpy~=1.26.4
+
+# Utilities
+uvicorn
+fastapi
+python-multipart

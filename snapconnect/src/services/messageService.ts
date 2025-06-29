@@ -11,6 +11,8 @@ export interface MessageWithUser extends Message {
   sender_username: string;
   receiver_username: string;
   is_expired: boolean;
+  is_ai_sender?: boolean; // New field to indicate if sender is AI
+  ai_personality_type?: string; // New field for AI personality type
 }
 
 export interface Conversation {
@@ -24,6 +26,7 @@ export interface Conversation {
   last_message_sent_at: string | null;
   unread_count: number;
   is_sender: boolean;
+  is_ai_conversation?: boolean; // New field to indicate AI conversation
 }
 
 export interface SendMessageParams {
@@ -67,7 +70,7 @@ class MessageService {
   }
 
   /**
-   * Mark a message as viewed (starts 10-second expiration timer)
+   * Mark a message as viewed (messages now persist permanently)
    */
   async markMessageAsViewed(messageId: string): Promise<boolean> {
     try {
@@ -91,17 +94,18 @@ class MessageService {
   }
 
   /**
-   * Get messages between current user and a friend
+   * Get messages between current user and another user (friend or AI)
    */
   async getMessagesBetweenFriends(
     friendId: string, 
     limit: number = 50
   ): Promise<MessageWithUser[]> {
     try {
-      console.log('💬 Fetching messages with friend:', friendId);
+      console.log('💬 Fetching messages with user:', friendId);
       
-      const { data, error } = await supabase.rpc('get_messages_between_friends', {
-        friend_id: friendId,
+      // Use the new AI-supported function that works with both friends and AI users
+      const { data, error } = await supabase.rpc('get_messages_with_ai_support', {
+        other_user_id: friendId,
         limit_count: limit,
       });
 
@@ -111,6 +115,30 @@ class MessageService {
       }
 
       console.log(`✅ Fetched ${data?.length || 0} messages`);
+      
+      // 🔍 DIAGNOSTIC LOGGING - Analyze fetched message data
+      if (data && data.length > 0) {
+        console.log('🔍 Message Data Analysis:');
+        data.forEach((msg: any, index: number) => {
+          console.log(`  Message ${index + 1}:`, {
+            id: msg.id,
+            content: msg.content?.substring(0, 20) + '...',
+            sender_id: msg.sender_id,
+            receiver_id: msg.receiver_id,
+            is_ai_sender: msg.is_ai_sender,
+            sender_username: msg.sender_username,
+            receiver_username: msg.receiver_username,
+            data_integrity: {
+              has_sender_id: msg.sender_id !== null,
+              has_receiver_id: msg.receiver_id !== null,
+              ai_flag_set: msg.is_ai_sender === true,
+              expected_ai_pattern: msg.is_ai_sender ? 'sender_id should be null' : 'sender_id should have value',
+              actual_pattern: msg.sender_id === null ? 'sender_id is null' : 'sender_id has value'
+            }
+          });
+        });
+      }
+      
       return data || [];
     } catch (error: any) {
       console.error('❌ Failed to fetch messages:', error);
@@ -119,13 +147,24 @@ class MessageService {
   }
 
   /**
-   * Get conversation list for the current user
+   * Get messages with AI support (alternative method name for clarity)
+   */
+  async getMessagesWithUser(
+    userId: string, 
+    limit: number = 50
+  ): Promise<MessageWithUser[]> {
+    return this.getMessagesBetweenFriends(userId, limit);
+  }
+
+  /**
+   * Get conversation list for the current user (includes AI conversations)
    */
   async getUserConversations(): Promise<Conversation[]> {
     try {
-      console.log('💬 Fetching user conversations');
+      console.log('💬 Fetching user conversations (including AI)');
       
-      const { data, error } = await supabase.rpc('get_user_conversations');
+      // Use the new AI-supported function that includes both friends and AI users
+      const { data, error } = await supabase.rpc('get_user_conversations_with_ai');
 
       if (error) {
         console.error('❌ Error fetching conversations:', error);
@@ -141,25 +180,12 @@ class MessageService {
   }
 
   /**
-   * Delete expired messages (cleanup function)
+   * Cleanup function (no longer needed as messages don't expire)
    */
   async cleanupExpiredMessages(): Promise<number> {
-    try {
-      console.log('🧹 Cleaning up expired messages');
-      
-      const { data, error } = await supabase.rpc('cleanup_expired_messages');
-
-      if (error) {
-        console.error('❌ Error cleaning up messages:', error);
-        throw new Error(error.message);
-      }
-
-      console.log(`✅ Cleaned up ${data || 0} expired messages`);
-      return data || 0;
-    } catch (error: any) {
-      console.error('❌ Failed to cleanup messages:', error);
-      throw new Error(error.message || 'Failed to cleanup messages');
-    }
+    // Messages no longer expire, so nothing to cleanup
+    console.log('ℹ️ Cleanup skipped - messages no longer expire');
+    return 0;
   }
 
   /**
@@ -183,8 +209,23 @@ class MessageService {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('📩 New message received:', payload.new);
-          onNewMessage(payload.new as Message);
+          console.log('📩 New message received (as receiver):', payload.new);
+          const message = payload.new as Message;
+          onNewMessage(message);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('📩 New message received (as sender):', payload.new);
+          const message = payload.new as Message;
+          onNewMessage(message);
         }
       )
       .on(
@@ -193,10 +234,23 @@ class MessageService {
           event: 'UPDATE',
           schema: 'public',
           table: 'messages',
-          filter: `sender_id=eq.${userId},receiver_id=eq.${userId}`,
+          filter: `sender_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('📝 Message updated:', payload.new);
+          console.log('📝 Message updated (as sender):', payload.new);
+          onMessageUpdate(payload.new as Message);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('📝 Message updated (as receiver):', payload.new);
           onMessageUpdate(payload.new as Message);
         }
       )
@@ -235,22 +289,19 @@ class MessageService {
   }
 
   /**
-   * Check if message is expired
+   * Check if message is expired (always returns false now)
    */
   isMessageExpired(message: Message): boolean {
-    if (!message.expires_at) return false;
-    return new Date(message.expires_at) < new Date();
+    // Messages no longer expire
+    return false;
   }
 
   /**
-   * Get time remaining until message expires (in seconds)
+   * Get time remaining until message expires (always returns 0 now)
    */
   getTimeUntilExpiration(message: Message): number {
-    if (!message.expires_at) return 0;
-    const expirationTime = new Date(message.expires_at).getTime();
-    const currentTime = new Date().getTime();
-    const timeRemaining = Math.max(0, Math.floor((expirationTime - currentTime) / 1000));
-    return timeRemaining;
+    // Messages no longer expire
+    return 0;
   }
 
   /**
@@ -322,6 +373,9 @@ class MessageService {
 
     return { isValid: true };
   }
+
+  // AI-related methods moved to separate services to avoid circular dependencies
+  // Use aiChatService directly for AI interactions
 }
 
 // Export singleton instance

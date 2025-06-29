@@ -13,11 +13,15 @@ import {
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useHealthStore } from '../../src/stores/healthStore';
 import { aiCoachService } from '../../src/services/aiCoachService';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { CoachCallButton } from '../../src/components/voice/CoachCallButton';
 
 export default function CoachScreen() {
+  const router = useRouter();
   const {
     isInitialized,
     isLoading,
@@ -347,9 +351,31 @@ export default function CoachScreen() {
 
         {/* AI Coach Message Card */}
         <GradientCard gradient="success" className="mb-6">
-          <View className="flex-row items-center mb-3">
-            <Text className="text-2xl mr-2">🤖</Text>
-            <Text className="text-white text-xl font-bold">Coach Alex</Text>
+          <View className="flex-row items-center justify-between mb-3">
+            <View className="flex-row items-center">
+              <Text className="text-2xl mr-2">🤖</Text>
+              <Text className="text-white text-xl font-bold">Coach Alex</Text>
+            </View>
+            
+            {/* 💬 TEXT CHAT BUTTON */}
+            <TouchableOpacity
+              onPress={() => router.push('/coach-chat')}
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: 20,
+                width: 40,
+                height: 40,
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+            >
+              <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
           
           {isGeneratingMessage ? (
@@ -361,6 +387,12 @@ export default function CoachScreen() {
             <Text className="text-white text-base leading-6">{coachMessage}</Text>
           )}
         </GradientCard>
+
+        {/* 📞 VOICE CALL WITH COACH ALEX - Natural Conversation */}
+        <CoachCallButton 
+          workoutContext={healthContext}
+          style={{ marginBottom: 24 }}
+        />
 
         {/* Quick Actions */}
         <View className="mb-8">

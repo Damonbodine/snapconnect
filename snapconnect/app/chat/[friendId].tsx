@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMessagesStore } from '../../src/stores/messagesStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useFriendsStore } from '../../src/stores/friendsStore';
+import { TypingIndicator } from '../../src/components/chat/TypingIndicator';
 import { MessageWithUser } from '../../src/services/messageService';
 import { gradients } from '../../src/styles/gradients';
 
@@ -158,10 +159,13 @@ export default function ChatScreen() {
     sendMessage,
     markMessageAsViewed,
     setActiveFriend,
+    setupRealTimeSubscriptions,
+    teardownRealTimeSubscriptions,
   } = useMessagesStore();
 
   const [messageText, setMessageText] = useState('');
   const [friend, setFriend] = useState<any>(null);
+  const [isAITyping, setIsAITyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Find friend info
@@ -172,19 +176,24 @@ export default function ChatScreen() {
     }
   }, [friendId, friends]);
 
-  // Load messages when screen opens
+  // Load messages when screen opens and setup real-time subscriptions
   useEffect(() => {
-    if (friendId && friendId !== activeFriendId) {
+    if (friendId && friendId !== activeFriendId && user?.id) {
       console.log('📱 Loading chat with friend:', friendId);
       setActiveFriend(friendId);
       fetchMessagesWithFriend(friendId);
+      
+      // 🔥 CRITICAL FIX: Setup real-time subscriptions for new messages
+      console.log('🔔 Setting up real-time subscriptions for chat');
+      setupRealTimeSubscriptions(user.id);
     }
 
     return () => {
       // Clean up when leaving chat
       setActiveFriend(null);
+      teardownRealTimeSubscriptions();
     };
-  }, [friendId]);
+  }, [friendId, user?.id]);
 
   // Auto-mark messages as viewed when they appear
   useEffect(() => {
@@ -195,9 +204,15 @@ export default function ChatScreen() {
           console.log('👁️ Auto-marking message as viewed:', message.id);
           markMessageAsViewed(message.id);
         }
+        
+        // Hide typing indicator when AI message arrives
+        if (message.is_ai_sender && isAITyping) {
+          console.log('✅ AI message received, hiding typing indicator');
+          setIsAITyping(false);
+        }
       });
     }
-  }, [currentConversation, friendId, user]);
+  }, [currentConversation, friendId, user, isAITyping]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !friendId || isSendingMessage) return;
@@ -205,11 +220,25 @@ export default function ChatScreen() {
     const content = messageText.trim();
     setMessageText(''); // Clear input immediately
 
+    // Check if this is an AI user to show typing indicator
+    const isAIUser = friend?.is_mock_user === true;
+
     try {
       await sendMessage({
         receiverId: friendId,
         content,
       });
+      
+      // Show AI typing indicator if messaging an AI user
+      if (isAIUser) {
+        setIsAITyping(true);
+        console.log('🤖 Message sent to AI user, showing typing indicator...');
+        
+        // Hide typing indicator after 8 seconds (AI should respond by then)
+        setTimeout(() => {
+          setIsAITyping(false);
+        }, 8000);
+      }
       
       // Scroll to bottom after sending
       setTimeout(() => {
@@ -218,6 +247,7 @@ export default function ChatScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to send message');
       setMessageText(content); // Restore message on error
+      setIsAITyping(false); // Hide typing indicator on error
     }
   };
 
@@ -232,13 +262,51 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: MessageWithUser }) => (
-    <MessageBubble
-      message={item}
-      isOwn={item.sender_id === user?.id}
-      onLongPress={() => handleMessageLongPress(item)}
-    />
-  );
+  const renderMessage = ({ item }: { item: MessageWithUser }) => {
+    // Fix message positioning logic for AI messages
+    const isOwn = item.is_ai_sender ? false : (item.sender_id === user?.id);
+    
+    // 🔍 DIAGNOSTIC LOGGING - Track message positioning logic
+    console.log('🔍 Message Positioning Debug:', {
+      messageId: item.id,
+      content: item.content?.substring(0, 30) + '...',
+      sender_id: item.sender_id,
+      receiver_id: item.receiver_id,
+      is_ai_sender: item.is_ai_sender,
+      current_user_id: user?.id,
+      friend_id: friendId,
+      isOwn_calculation: item.is_ai_sender 
+        ? 'AI message = LEFT (their message)' 
+        : `${item.sender_id} === ${user?.id} = ${isOwn}`,
+      expected_position: isOwn ? 'RIGHT (my message)' : 'LEFT (their message)',
+      sender_username: item.sender_username,
+      receiver_username: item.receiver_username
+    });
+    
+    // Additional validation checks
+    if (item.is_ai_sender && item.sender_id !== friendId) {
+      console.warn('⚠️ AI Message Issue: AI message sender_id does not match current friend:', {
+        ai_sender_id: item.sender_id,
+        expected_friend_id: friendId
+      });
+    }
+    
+    if (!item.is_ai_sender && item.sender_id === null) {
+      console.warn('⚠️ Human Message Issue: Human message has null sender_id');
+    }
+    
+    if (!user?.id) {
+      console.warn('⚠️ Auth Issue: user.id is null/undefined, all messages will appear as "not own"');
+    }
+    
+    return (
+      <MessageBubble
+        message={item}
+        isOwn={isOwn}
+        onLongPress={() => handleMessageLongPress(item)}
+      />
+    );
+  };
 
   const renderHeader = () => (
     <View className="flex-row items-center p-4 border-b border-gray-800">
@@ -277,7 +345,10 @@ export default function ChatScreen() {
       <Text className="text-4xl mb-4">💬</Text>
       <Text className="text-xl font-bold text-white mb-2">Start the conversation!</Text>
       <Text className="text-gray-400 text-center">
-        Messages will disappear 10 seconds after being viewed
+        {friend?.is_mock_user ? 
+          'Chat with your AI fitness coach - messages are saved permanently' :
+          'Send a message to start chatting'
+        }
       </Text>
     </View>
   );
@@ -313,6 +384,12 @@ export default function ChatScreen() {
               showsVerticalScrollIndicator={false}
             />
           )}
+
+          {/* AI Typing Indicator */}
+          <TypingIndicator 
+            visible={isAITyping} 
+            senderName={friend?.username || 'AI'} 
+          />
 
           {/* Loading indicator */}
           {isLoadingMessages && (

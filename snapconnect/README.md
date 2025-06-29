@@ -1,6 +1,6 @@
-# SnapConnect - RAG-Enhanced Fitness Social Platform
+# SnapConnect - AI Enhanced Social Media Fitness Platform
 
-A cutting-edge fitness social platform that combines Snapchat's ephemeral messaging with AI-powered content generation. Built with React Native, Expo, and Supabase, featuring AR filters, real-time messaging, and personalized fitness content.
+A cutting-edge fitness social platform that combines Snapchat's ephemeral messaging with AI-powered content generation. Built with React Native, Expo, and Supabase, featuring ai coaching, real-time messaging, workout planners, suggestions, and real time context aware AI based coach.
 
 ## 🚀 Quick Start - Testing the App
 
@@ -8,11 +8,13 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
 
 **The fastest way to test the app without complex setup:**
 
-1. **Install Expo Go** on your mobile device:
-   - [iOS App Store](https://apps.apple.com/app/expo-go/id982107779)
-   - [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent)
++ Important:** This is a **React Native mobile application** that requires either:   │ │
+│ │    8 +  - **Mobile device** with Expo Go app (for quick testing)                             │ │
+│ │    9 +  - **iOS Simulator** via Xcode (macOS only)                                           │ │
+│ │   10 +                                         │ │
+│ │   11 +  - **Physical iOS/Android device** (recommended for full feature testing)  
 
-2. **Get the app running:**
+1. **Get the app running:**
    ```bash
    # Clone the repository
    git clone https://github.com/Damonbodine/snapconnect.git
@@ -25,21 +27,30 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
    npm start
    ```
 
-3. **Connect your device:**
-   - Scan the QR code that appears in your terminal/browser
-   - The app will load directly on your device through Expo Go
-
-**⚠️ Note:** Some advanced features (AR filters, camera effects) may be limited in Expo Go.
+**⚠️ Note:** Some advanced features may be limited if you test the app through Expo Go
 
 ### Option 2: Full Development Build (Complete Experience)
 
 **For full feature access including AR and native capabilities:**
 
 #### Prerequisites
+damonbodine@Damons-Air Boostme % cd /Users/damonbodine/Boostme/snapconnect/voice-service 
+damonbodine@Damons-Air voice-service % source venv/bin/activate
+(venv) damonbodine@Damons-Air voice-service % python main.py
+
+
+
 - **Node.js** 18+ ([Download](https://nodejs.org/))
 - **Expo CLI**: `npm install -g @expo/cli`
-- **iOS**: Xcode 14+ (macOS only)
-- **Android**: Android Studio with SDK 33+
+
+**For iOS Testing (macOS only):**
+- **Xcode 14+** (Available from Mac App Store)
+- **iOS Simulator** (included with Xcode)
+- **Physical iOS device** (recommended for camera/AR features)
+- **Apple Developer Account** (free tier sufficient for development)
+
+
+**Note:** This is a **React Native app built with Expo**, which requires native development environments (Xcode for iOS, Android Studio for Android) for full functionality testing.
 
 #### Setup Steps
 1. **Clone and install:**
@@ -71,54 +82,9 @@ A cutting-edge fitness social platform that combines Snapchat's ephemeral messag
 
 ## ⚙️ Configuration
 
-### Required Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```bash
-# Supabase Configuration (Backend Database)
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# OpenAI Configuration (AI Content Generation)
-EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key
-
-# App Configuration
-EXPO_PUBLIC_API_URL=https://api.snapconnect.fitness
-EXPO_PUBLIC_ENVIRONMENT=development
+###  I will send .ENV and Api Key's. 
 ```
 
-### Getting API Keys
-
-#### Supabase Setup (Required for app functionality)
-1. Create a free account at [supabase.com](https://supabase.com)
-2. Create a new project
-3. Go to Settings → API
-4. Copy your Project URL and anon/public key
-5. Run database migrations (see Database Setup below)
-
-#### OpenAI Setup (Required for AI features)
-1. Create an account at [platform.openai.com](https://platform.openai.com)
-2. Generate an API key in the API keys section
-3. Add billing information (required for API access)
-
-### Database Setup
-
-The app uses Supabase as its backend. After setting up your Supabase project:
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Login to Supabase
-supabase login
-
-# Link to your project
-supabase link --project-ref your-project-id
-
-# Run migrations to set up the database schema
-supabase db push
-```
 
 ## 📱 App Features & Testing Guide
 
@@ -149,9 +115,16 @@ supabase db push
    - Dedicated friends page with Instagram-style UI
 
 5. **Events System**
-   - Local fitness events discovery
-   - Location-based features
+   - AI Powered Walking Recommendation based on your location
+   - AI Powered Workout Recommendations based on your fitness goals
    - Event participation
+
+6.  **AI Coaching System**
+7.  -Coach Alex who takes your entire personal context to offer real time valuable insights
+8.  -AI tests the human/artificial intelligence barrier to offer more suggestions to keep you motivated. 
+9.  -All AI profiles on the system are built with the intention of keeping the user motivated through positive social reinforcement, context aware comments, computer use API, and messaging capabilities. 
+
+
 
 ### Testing Accounts
 
@@ -225,13 +198,10 @@ eas build --platform android # Android production build
 
 ### iOS
 - iOS 13.0 or later
-- iPhone 8 or newer (for AR features)
-- Camera and microphone permissions
+- iPhone 13 or newer
+- Camera, microphone, location, and health permissions
 
-### Android
-- Android 10 (API level 29) or later
-- ARCore support (for AR features)
-- Camera and microphone permissions
+
 
 ## 🚨 Troubleshooting
 
@@ -296,4 +266,4 @@ This project is for educational purposes. All rights reserved.
 
 ---
 
-**For Professors/Evaluators**: If you need assistance setting up the app or encounter any issues, please don't hesitate to reach out. The Quick Demo option with Expo Go is recommended for the smoothest testing experience.
+**For Professors/Evaluators**: If you need assistance setting up the app or encounter any issues, please don't hesitate to reach out. 

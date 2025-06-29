@@ -148,79 +148,17 @@ export interface CompatibilityScore {
   overall_score: number; // 0-1
 }
 
-// Predefined AI archetypes
-export const AI_ARCHETYPES: AIArchetype[] = [
+// Diverse AI Personalities - Real people with various backgrounds (NOT fitness coaches)
+export const DIVERSE_AI_PERSONALITIES: AIArchetype[] = [
   {
-    id: 'fitness_newbie',
-    name: 'Fitness Newbie',
-    description: 'Beginner seeking encouragement and basic guidance',
+    id: 'emma_teacher',
+    name: 'Emma - Elementary Teacher',
+    description: 'Warm 3rd grade teacher who encourages everyone like her students',
     base_personality: {
       fitness_level: 'beginner',
-      primary_goals: ['weight_loss', 'overall_wellness'],
+      primary_goals: ['overall_wellness', 'stress_relief'],
       workout_frequency: 3,
       communication_style: 'friendly',
-      posting_personality: 'progress_focused',
-      content_tone: 'encouraging',
-      social_engagement: 'high',
-      experience_sharing: 'beginner_tips',
-      mentoring_inclination: 'learner'
-    },
-    response_style: {
-      message_response_delay_min: 300,
-      message_response_delay_max: 1800,
-      conversation_depth: 'moderate',
-      asks_questions: 'frequently',
-      comment_length: 'medium'
-    },
-    posting_schedule: {
-      preferred_hour: 19,
-      posts_per_week: 4,
-      workout_post_frequency: 3,
-      motivation_post_frequency: 1
-    },
-    sample_usernames: ['newbie_lisa', 'beginner_bob', 'starting_strong', 'fitness_first_timer'],
-    avatar_style_keywords: ['friendly', 'approachable', 'casual', 'gym_beginner']
-  },
-  {
-    id: 'strength_warrior',
-    name: 'Strength Warrior',
-    description: 'Advanced lifter focused on strength and muscle building',
-    base_personality: {
-      fitness_level: 'advanced',
-      primary_goals: ['muscle_gain', 'strength'],
-      workout_frequency: 6,
-      communication_style: 'motivational',
-      posting_personality: 'educational',
-      content_tone: 'competitive',
-      social_engagement: 'medium',
-      experience_sharing: 'advanced_techniques',
-      mentoring_inclination: 'helper'
-    },
-    response_style: {
-      message_response_delay_min: 60,
-      message_response_delay_max: 600,
-      conversation_depth: 'deep',
-      asks_questions: 'sometimes',
-      comment_length: 'long'
-    },
-    posting_schedule: {
-      preferred_hour: 6,
-      posts_per_week: 5,
-      workout_post_frequency: 4,
-      educational_post_frequency: 1
-    },
-    sample_usernames: ['iron_alex', 'strength_sage', 'lift_legend', 'barbell_boss'],
-    avatar_style_keywords: ['muscular', 'confident', 'gym', 'strength_equipment']
-  },
-  {
-    id: 'cardio_queen',
-    name: 'Cardio Queen',
-    description: 'Endurance enthusiast who loves running and cardio',
-    base_personality: {
-      fitness_level: 'intermediate',
-      primary_goals: ['endurance', 'overall_wellness'],
-      workout_frequency: 5,
-      communication_style: 'casual',
       posting_personality: 'social',
       content_tone: 'encouraging',
       social_engagement: 'high',
@@ -228,82 +166,144 @@ export const AI_ARCHETYPES: AIArchetype[] = [
       mentoring_inclination: 'helper'
     },
     response_style: {
-      message_response_delay_min: 120,
-      message_response_delay_max: 900,
+      message_response_delay_min: 600,
+      message_response_delay_max: 3600,
       conversation_depth: 'moderate',
       asks_questions: 'frequently',
-      comment_length: 'varied'
+      comment_length: 'medium'
     },
     posting_schedule: {
-      preferred_hour: 7,
-      posts_per_week: 5,
-      workout_post_frequency: 3,
-      social_post_frequency: 2
+      preferred_hour: 16,
+      posts_per_week: 3,
+      workout_post_frequency: 2,
+      social_post_frequency: 1
     },
-    sample_usernames: ['run_rachel', 'cardio_star', 'endurance_emma', 'heart_rate_hero'],
-    avatar_style_keywords: ['running', 'energetic', 'outdoor', 'athletic']
+    sample_usernames: ['emma_teaches', 'miss_emma_fit', 'teacher_emma92'],
+    avatar_style_keywords: ['friendly', 'approachable', 'teacher', 'warm_smile']
   },
   {
-    id: 'zen_master',
-    name: 'Zen Master',
-    description: 'Mind-body practitioner focused on yoga and wellness',
+    id: 'marcus_developer',
+    name: 'Marcus - Software Developer',
+    description: 'Systematic developer who treats fitness like debugging code',
     base_personality: {
       fitness_level: 'intermediate',
-      primary_goals: ['flexibility', 'overall_wellness'],
+      primary_goals: ['overall_wellness', 'strength'],
       workout_frequency: 4,
-      communication_style: 'zen',
-      posting_personality: 'inspirational',
-      content_tone: 'zen',
+      communication_style: 'technical',
+      posting_personality: 'progress_focused',
+      content_tone: 'analytical',
       social_engagement: 'medium',
+      experience_sharing: 'beginner_tips',
+      mentoring_inclination: 'helper'
+    },
+    response_style: {
+      message_response_delay_min: 300,
+      message_response_delay_max: 1200,
+      conversation_depth: 'moderate',
+      asks_questions: 'sometimes',
+      comment_length: 'short'
+    },
+    posting_schedule: {
+      preferred_hour: 19,
+      posts_per_week: 3,
+      workout_post_frequency: 2,
+      educational_post_frequency: 1
+    },
+    sample_usernames: ['marcus_codes', 'dev_marcus', 'marcus_debug'],
+    avatar_style_keywords: ['tech', 'glasses', 'modern', 'systematic']
+  },
+  {
+    id: 'sofia_nurse',
+    name: 'Sofia - Registered Nurse',
+    description: 'Healthcare worker who understands the importance of self-care',
+    base_personality: {
+      fitness_level: 'intermediate',
+      primary_goals: ['stress_relief', 'overall_wellness'],
+      workout_frequency: 4,
+      communication_style: 'motivational',
+      posting_personality: 'inspirational',
+      content_tone: 'encouraging',
+      social_engagement: 'high',
       experience_sharing: 'motivation',
       mentoring_inclination: 'helper'
     },
     response_style: {
-      message_response_delay_min: 600,
-      message_response_delay_max: 3600,
+      message_response_delay_min: 1800,
+      message_response_delay_max: 7200,
       conversation_depth: 'deep',
-      asks_questions: 'sometimes',
-      comment_length: 'medium'
+      asks_questions: 'frequently',
+      comment_length: 'long'
     },
     posting_schedule: {
       preferred_hour: 6,
       posts_per_week: 4,
-      workout_post_frequency: 2,
-      motivation_post_frequency: 2
+      workout_post_frequency: 3,
+      motivation_post_frequency: 1
     },
-    sample_usernames: ['zen_zara', 'mindful_mike', 'yoga_sage', 'balance_master'],
-    avatar_style_keywords: ['peaceful', 'yoga', 'meditation', 'serene']
+    sample_usernames: ['sofia_cares', 'nurse_sofia', 'sofia_wellness'],
+    avatar_style_keywords: ['caring', 'professional', 'healthcare', 'supportive']
   },
   {
-    id: 'outdoor_adventurer',
-    name: 'Outdoor Adventurer',
-    description: 'Nature lover who prefers outdoor activities',
+    id: 'tyler_chef',
+    name: 'Tyler - Professional Chef',
+    description: 'High-energy chef who treats fitness like cooking - with passion',
     base_personality: {
       fitness_level: 'advanced',
-      primary_goals: ['endurance', 'strength'],
+      primary_goals: ['energy', 'strength'],
       workout_frequency: 5,
-      communication_style: 'friendly',
-      posting_personality: 'inspirational',
+      communication_style: 'casual',
+      posting_personality: 'social',
       content_tone: 'encouraging',
       social_engagement: 'high',
       experience_sharing: 'motivation',
       mentoring_inclination: 'neutral'
     },
     response_style: {
-      message_response_delay_min: 1800,
-      message_response_delay_max: 7200,
+      message_response_delay_min: 180,
+      message_response_delay_max: 900,
+      conversation_depth: 'moderate',
+      asks_questions: 'frequently',
+      comment_length: 'medium'
+    },
+    posting_schedule: {
+      preferred_hour: 14,
+      posts_per_week: 5,
+      workout_post_frequency: 3,
+      social_post_frequency: 2
+    },
+    sample_usernames: ['chef_tyler', 'tyler_cooks', 'kitchen_tyler'],
+    avatar_style_keywords: ['energetic', 'chef_hat', 'food_lover', 'creative']
+  },
+  {
+    id: 'aisha_lawyer',
+    name: 'Aisha - Corporate Lawyer',
+    description: 'Busy lawyer who treats fitness like important meetings - non-negotiable',
+    base_personality: {
+      fitness_level: 'intermediate',
+      primary_goals: ['stress_relief', 'strength'],
+      workout_frequency: 4,
+      communication_style: 'motivational',
+      posting_personality: 'progress_focused',
+      content_tone: 'competitive',
+      social_engagement: 'medium',
+      experience_sharing: 'advanced_techniques',
+      mentoring_inclination: 'helper'
+    },
+    response_style: {
+      message_response_delay_min: 900,
+      message_response_delay_max: 3600,
       conversation_depth: 'moderate',
       asks_questions: 'sometimes',
       comment_length: 'medium'
     },
     posting_schedule: {
-      preferred_hour: 17,
-      posts_per_week: 4,
-      workout_post_frequency: 3,
-      social_post_frequency: 1
+      preferred_hour: 6,
+      posts_per_week: 3,
+      workout_post_frequency: 2,
+      educational_post_frequency: 1
     },
-    sample_usernames: ['trail_tyler', 'outdoor_olivia', 'nature_nomad', 'peak_seeker'],
-    avatar_style_keywords: ['outdoor', 'hiking', 'nature', 'adventure']
+    sample_usernames: ['aisha_law', 'lawyer_aisha', 'aisha_advises'],
+    avatar_style_keywords: ['professional', 'confident', 'business', 'determined']
   }
 ];
 
@@ -320,13 +320,16 @@ export const hasAIResponseStyle = (user: any): user is { ai_response_style: AIRe
   return user?.ai_response_style && typeof user.ai_response_style === 'object';
 };
 
+// Backward compatibility - use diverse personalities as the new "archetypes"
+export const AI_ARCHETYPES = DIVERSE_AI_PERSONALITIES;
+
 // Utility functions
 export const getArchetypeById = (id: string): AIArchetype | undefined => {
-  return AI_ARCHETYPES.find(archetype => archetype.id === id);
+  return DIVERSE_AI_PERSONALITIES.find(archetype => archetype.id === id);
 };
 
 export const getRandomArchetype = (): AIArchetype => {
-  return AI_ARCHETYPES[Math.floor(Math.random() * AI_ARCHETYPES.length)];
+  return DIVERSE_AI_PERSONALITIES[Math.floor(Math.random() * DIVERSE_AI_PERSONALITIES.length)];
 };
 
 export const calculatePersonalityCompatibility = (

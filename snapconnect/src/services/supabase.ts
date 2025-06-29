@@ -283,6 +283,24 @@ export interface Database {
           connection_state?: 'connecting' | 'connected' | 'disconnected' | 'failed';
         };
       };
+      workout_notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          workout_type: string;
+          note: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          workout_type: string;
+          note: string;
+        };
+        Update: {
+          workout_type?: string;
+          note?: string;
+        };
+      };
     };
   };
 }

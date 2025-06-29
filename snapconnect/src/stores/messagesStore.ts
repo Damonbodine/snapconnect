@@ -27,7 +27,6 @@ export interface MessagesState {
   // Cache management
   lastFetchTime: number;
   messageCache: Map<string, MessageWithUser[]>; // friendId -> messages
-  expiredMessageIds: Set<string>;
   
   // Metrics
   totalUnreadCount: number;
@@ -56,7 +55,6 @@ export interface MessagesActions {
   resetStore: () => void;
   
   // Message lifecycle
-  markMessageAsExpired: (messageId: string) => void;
   cleanupExpiredMessages: () => Promise<void>;
   
   // Optimistic updates
@@ -93,7 +91,6 @@ const initialState: MessagesState = {
   // Cache management
   lastFetchTime: 0,
   messageCache: new Map(),
-  expiredMessageIds: new Set(),
   
   // Metrics
   totalUnreadCount: 0,
@@ -165,7 +162,7 @@ export const useMessagesStore = create<MessagesStore>()(
           }
         },
 
-        // Mark message as viewed (starts expiration timer)
+        // Mark message as viewed (no expiration)
         markMessageAsViewed: async (messageId: string) => {
           try {
             console.log('👁️ Marking message as viewed:', messageId);
@@ -175,11 +172,6 @@ export const useMessagesStore = create<MessagesStore>()(
             
             // Update in backend
             await messageService.markMessageAsViewed(messageId);
-            
-            // Start local timer for expiration (10 seconds)
-            setTimeout(() => {
-              get().markMessageAsExpired(messageId);
-            }, 10000);
             
             console.log('✅ Message marked as viewed');
             
@@ -300,19 +292,35 @@ export const useMessagesStore = create<MessagesStore>()(
             (newMessage: Message) => {
               console.log('📩 New message received:', newMessage);
               
-              // Add to current conversation if it's the active friend
+              // Add to current conversation if it's relevant to the active chat
               const { activeFriendId } = get();
-              if (activeFriendId === newMessage.sender_id) {
+              
+              // Check if this message is part of the current conversation
+              const isRelevantMessage = 
+                // AI message from the active AI friend to current user
+                (newMessage.is_ai_sender && newMessage.sender_id === activeFriendId && newMessage.receiver_id === userId) ||
+                // Regular message from active friend to current user
+                (newMessage.sender_id === activeFriendId && newMessage.receiver_id === userId) ||
+                // Message from current user to active friend (your message)
+                (newMessage.sender_id === userId && newMessage.receiver_id === activeFriendId);
+              
+              if (isRelevantMessage) {
+                console.log('✅ Adding relevant message to current chat');
                 const messageWithUser: MessageWithUser = {
                   ...newMessage,
-                  sender_username: '', // Will be filled by real fetch
+                  sender_username: newMessage.is_ai_sender ? 'AI Assistant' : '',
                   receiver_username: '',
                   is_expired: false,
                 };
                 get().optimisticallyAddMessage(messageWithUser);
+                
+                // Force scroll to bottom to show new message
+                setTimeout(() => {
+                  // This will trigger any chat component listening to conversation changes
+                }, 100);
               }
               
-              // Refresh conversations to update unread counts
+              // Always refresh conversations to update unread counts
               get().fetchConversations();
             },
             (updatedMessage: Message) => {
@@ -322,7 +330,7 @@ export const useMessagesStore = create<MessagesStore>()(
               const { currentConversation } = get();
               const updatedConversation = currentConversation.map(msg => 
                 msg.id === updatedMessage.id 
-                  ? { ...msg, ...updatedMessage, is_expired: messageService.isMessageExpired(updatedMessage) }
+                  ? { ...msg, ...updatedMessage }
                   : msg
               );
               
@@ -383,29 +391,10 @@ export const useMessagesStore = create<MessagesStore>()(
           get().teardownRealTimeSubscriptions();
           set({ 
             ...initialState, 
-            messageCache: new Map(),
-            expiredMessageIds: new Set()
+            messageCache: new Map()
           });
         },
 
-        // Mark message as expired and remove from UI
-        markMessageAsExpired: (messageId: string) => {
-          const { currentConversation, expiredMessageIds } = get();
-          
-          // Add to expired set
-          const newExpiredIds = new Set(expiredMessageIds);
-          newExpiredIds.add(messageId);
-          
-          // Remove from current conversation
-          const filteredConversation = currentConversation.filter(msg => msg.id !== messageId);
-          
-          set({ 
-            currentConversation: filteredConversation,
-            expiredMessageIds: newExpiredIds
-          });
-          
-          console.log('💨 Message expired and removed:', messageId);
-        },
 
         // Cleanup expired messages
         cleanupExpiredMessages: async () => {
@@ -455,8 +444,7 @@ export const useMessagesStore = create<MessagesStore>()(
               ? { 
                   ...msg, 
                   is_viewed: true, 
-                  viewed_at: new Date().toISOString(),
-                  expires_at: new Date(Date.now() + 10000).toISOString() // 10 seconds from now
+                  viewed_at: new Date().toISOString()
                 }
               : msg
           );
@@ -493,7 +481,6 @@ export const useMessagesStore = create<MessagesStore>()(
             ...currentState,
             ...persistedState,
             messageCache: new Map(), // Always start with empty cache
-            expiredMessageIds: new Set(), // Always start fresh
             messagesSubscription: null,
             conversationsSubscription: null,
           };

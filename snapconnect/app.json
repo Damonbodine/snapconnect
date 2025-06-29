@@ -21,7 +21,7 @@
         "NSCameraUsageDescription": "SnapConnect needs camera access to capture workout photos and videos with AR filters.",
         "NSPhotoLibraryUsageDescription": "SnapConnect needs photo library access to save your progress photos.",
         "NSLocationWhenInUseUsageDescription": "SnapConnect needs location access to show nearby fitness events.",
-        "NSMicrophoneUsageDescription": "SnapConnect needs microphone access for video recording with audio.",
+        "NSMicrophoneUsageDescription": "SnapConnect needs microphone access for voice conversations with Coach Alex and video recording with audio.",
         "NSHealthShareUsageDescription": "SnapConnect needs access to your health data to provide personalized fitness coaching and track your progress.",
         "NSHealthUpdateUsageDescription": "SnapConnect can update your health data with workout information and achievements."
       },

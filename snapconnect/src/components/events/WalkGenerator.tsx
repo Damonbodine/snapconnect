@@ -217,7 +217,22 @@ export const WalkGenerator: React.FC = () => {
   };
 
   const handleViewRoute = (suggestion: WalkSuggestion) => {
-    setSelectedSuggestionForMap(suggestion);
+    console.log('🗺️ View Route pressed for:', suggestion.title);
+    console.log('🗺️ Suggestion data:', {
+      id: suggestion.id,
+      hasRoute: !!suggestion.route,
+      waypoints: suggestion.route?.waypoints?.length || 0,
+      pointsOfInterest: suggestion.pointsOfInterest?.length || 0
+    });
+    
+    // Close the suggestions modal first, then open route map
+    setShowSuggestions(false);
+    
+    // Small delay to ensure suggestions modal closes first
+    setTimeout(() => {
+      setSelectedSuggestionForMap(suggestion);
+      console.log('🗺️ State updated, selectedSuggestionForMap should now be:', suggestion.id);
+    }, 300);
   };
 
   const handleGenerateMore = async () => {
@@ -318,13 +333,32 @@ export const WalkGenerator: React.FC = () => {
         visible={selectedSuggestionForMap !== null}
         animationType="slide"
         presentationStyle="fullScreen"
+        onShow={() => {
+          console.log('🗺️ Modal onShow triggered');
+        }}
+        onRequestClose={() => {
+          console.log('🗺️ Modal onRequestClose triggered');
+          setSelectedSuggestionForMap(null);
+        }}
       >
-        {selectedSuggestionForMap && (
+        {selectedSuggestionForMap ? (
           <RouteMap
+            key={selectedSuggestionForMap.id} // Force remount when suggestion changes
             suggestion={selectedSuggestionForMap}
             showFullScreen={true}
-            onClose={() => setSelectedSuggestionForMap(null)}
+            onClose={() => {
+              console.log('🗺️ RouteMap onClose triggered');
+              setSelectedSuggestionForMap(null);
+              // Reopen suggestions modal when map closes
+              setTimeout(() => {
+                setShowSuggestions(true);
+              }, 300);
+            }}
           />
+        ) : (
+          <View className="flex-1 bg-black items-center justify-center">
+            <Text className="text-white">Loading map...</Text>
+          </View>
         )}
       </Modal>
     </>

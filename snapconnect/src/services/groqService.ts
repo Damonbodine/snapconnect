@@ -200,7 +200,7 @@ export class GroqService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-70b-8192', // Using Llama 3 70B for better reasoning
+        model: 'llama3-8b-8192', // Using Llama 3 8B for faster response times
         messages: [
           {
             role: 'system',
@@ -211,7 +211,7 @@ export class GroqService {
             content: userPrompt,
           },
         ],
-        max_tokens: 2000,
+        max_tokens: 800,
         temperature: 0.8,
         top_p: 0.9,
       }),

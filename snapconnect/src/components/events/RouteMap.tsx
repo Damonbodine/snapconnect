@@ -23,6 +23,15 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   onClose,
   className = '',
 }) => {
+  // Debug logging
+  console.log('🗺️ RouteMap rendering with:', {
+    suggestionId: suggestion?.id,
+    title: suggestion?.title,
+    showFullScreen,
+    hasRoute: !!suggestion?.route,
+    waypoints: suggestion?.route?.waypoints?.length || 0,
+    pointsOfInterest: suggestion?.pointsOfInterest?.length || 0
+  });
   const mapRef = useRef<MapView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -148,9 +157,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const handleMapReady = () => {
     setMapReady(true);
     setIsLoading(false);
+    // Immediate fit, then delayed fit for reliability
     setTimeout(() => {
       fitToWaypoints();
-    }, 500);
+    }, 100);
+    setTimeout(() => {
+      fitToWaypoints();
+    }, 800);
   };
 
   const getMarkerColor = (index: number, total: number) => {
@@ -169,6 +182,16 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   
   // Use Apple Maps on iOS for better walking directions
   const mapProvider = Platform.OS === 'ios' ? PROVIDER_DEFAULT : PROVIDER_GOOGLE;
+
+  // Add useEffect to trigger map fitting when modal opens
+  useEffect(() => {
+    if (showFullScreen && mapReady) {
+      // Additional fit when transitioning to full screen
+      setTimeout(() => {
+        fitToWaypoints();
+      }, 300);
+    }
+  }, [showFullScreen, mapReady]);
 
   // Fetch real walking directions for this specific route
   useEffect(() => {
@@ -277,11 +300,23 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
   // Safety check - ensure we have valid data
   if (!suggestion?.route?.waypoints || suggestion.route.waypoints.length === 0) {
-    console.warn('RouteMap: Invalid route data', suggestion?.route);
+    console.warn('RouteMap: Invalid route data', {
+      suggestion: !!suggestion,
+      route: !!suggestion?.route,
+      waypoints: suggestion?.route?.waypoints?.length || 0,
+      suggestionData: suggestion
+    });
     return (
       <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white text-center">
+        <Text className="text-white text-center mb-4">
           No route data available
+        </Text>
+        <Text className="text-white/60 text-xs text-center mb-4">
+          Debug: {JSON.stringify({
+            hasSuggestion: !!suggestion,
+            hasRoute: !!suggestion?.route,
+            waypoints: suggestion?.route?.waypoints?.length || 0
+          })}
         </Text>
         {onClose && (
           <Pressable onPress={onClose} className="mt-4 p-2">

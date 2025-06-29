@@ -11,6 +11,7 @@ import { WalkSuggestionCard } from '../components/events/WalkSuggestionCard';
 import { WorkoutCreator } from '../components/events/WorkoutCreator';
 import { WalkGenerator } from '../components/events/WalkGenerator';
 import { RouteMap } from '../components/events/RouteMap';
+import { EventParticipants } from '../components/events/EventParticipants';
 import { useEventStore } from '../stores/eventStore';
 import { useAuthStore } from '../stores/authStore';
 import { eventService } from '../services/eventService';
@@ -273,6 +274,14 @@ export const EventsScreen = () => {
                         </View>
                       </View>
 
+                      {/* Participants */}
+                      <View className="mb-3">
+                        <EventParticipants 
+                          eventId={event.id}
+                          maxVisible={4}
+                        />
+                      </View>
+
                       {/* RSVP Button */}
                       <RSVPButton 
                         event={event}
@@ -353,6 +362,14 @@ export const EventsScreen = () => {
                           </View>
                         )}
                       </View>
+                    </View>
+
+                    {/* Participants */}
+                    <View className="mb-3">
+                      <EventParticipants 
+                        eventId={event.id}
+                        maxVisible={4}
+                      />
                     </View>
 
                     {/* RSVP Button */}

@@ -373,6 +373,31 @@ class EventService {
     return data || [];
   }
 
+  async getEventParticipantsWithProfiles(eventId: string): Promise<(EventParticipant & { user: any })[]> {
+    const { data, error } = await supabase
+      .from('event_participants')
+      .select(`
+        *,
+        user:users(
+          id,
+          username,
+          full_name,
+          avatar_url,
+          is_mock_user
+        )
+      `)
+      .eq('event_id', eventId)
+      .in('status', ['going', 'maybe'])
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching event participants with profiles:', error);
+      throw new Error('Failed to fetch event participants with profiles');
+    }
+
+    return data || [];
+  }
+
   async getEventById(eventId: string): Promise<Event | null> {
     const { data, error } = await supabase
       .from('events')
