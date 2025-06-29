@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-SnapConnect is a RAG-enhanced fitness social platform that combines Snapchat's ephemeral messaging with AI-powered content generation for fitness enthusiasts. This document provides guidance for AI assistants working on this project.
+SnapConnect is a RAG-enhanced fitness social platform that combines Snapchat's core features   with AI-powered content generation, community, and coaching for fitness enthusiasts. This document provides guidance for AI assistants working on this project.
 
 ## Quick Start Commands
 
